@@ -13,6 +13,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -52,6 +54,25 @@ public class DevController {
             response.put("error", "Admin user not found");
         }
         
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Inspecciona el contexto de seguridad (SOLO PARA DEV)
+     */
+    @GetMapping("/whoami")
+    public ResponseEntity<Map<String, Object>> whoAmI() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        Map<String, Object> response = new HashMap<>();
+        if (auth == null) {
+            response.put("authenticated", false);
+            response.put("principal", null);
+            response.put("authorities", null);
+        } else {
+            response.put("authenticated", auth.isAuthenticated());
+            response.put("principal", auth.getPrincipal());
+            response.put("authorities", auth.getAuthorities());
+        }
         return ResponseEntity.ok(response);
     }
 

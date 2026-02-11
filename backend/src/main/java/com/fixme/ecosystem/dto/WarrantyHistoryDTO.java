@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
@@ -16,10 +17,14 @@ public class WarrantyHistoryDTO {
     private String serialNumber;
     private String internalCode;
     private String productName;
-    private String productSku;
-    private String importProvider;
-    private java.time.LocalDateTime importDate;
+    private String brand;
+    private String model;
     private String customerName;
-    private java.time.LocalDateTime saleDate;
-    private BigDecimal unitPrice;
+    private LocalDateTime saleDate;
+    private LocalDateTime warrantyEndDate;
+    private String warrantyStatus;
+    private String qrToken;
+    private BigDecimal salePrice;
+    private BigDecimal landedCost;
+    private String status;
 }

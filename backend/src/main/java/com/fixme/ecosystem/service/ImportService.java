@@ -137,7 +137,7 @@ public class ImportService {
                             .importRecord(importRecord)
                             .serialNumber(sn.getSerialNumber())
                             .internalCode(sn.getInternalCode())
-                            .status("AVAILABLE")
+                            .status("DISPONIBLE")
                             .build();
                     inventoryItemRepository.save(inventoryItem);
                 }

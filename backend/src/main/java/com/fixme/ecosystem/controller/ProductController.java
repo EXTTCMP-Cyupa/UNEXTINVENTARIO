@@ -157,6 +157,31 @@ public class ProductController {
     }
 
     /**
+     * Listar inventario completo o filtrado por estado
+     */
+    @GetMapping("/inventory/list")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<InventoryItem>> getInventoryList(
+            @RequestParam(required = false) String status) {
+        log.info("Obteniendo inventario - Estado: {}", status);
+        List<InventoryItem> items = inventoryService.findAll(status);
+        return ResponseEntity.ok(items);
+    }
+
+    /**
+     * Editar datos de un producto en inventario
+     */
+    @PutMapping("/inventory/{inventoryItemId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<InventoryItem> updateInventoryItem(
+            @PathVariable Long inventoryItemId,
+            @RequestBody InventoryUpdateDTO dto) {
+        log.info("Actualizando inventario - ID: {}", inventoryItemId);
+        InventoryItem item = inventoryService.updateInventoryItem(inventoryItemId, dto);
+        return ResponseEntity.ok(item);
+    }
+
+    /**
      * Marcar un producto como vendido
      */
     @PutMapping("/inventory/sold/{inventoryItemId}")

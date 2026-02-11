@@ -3,6 +3,7 @@ package com.fixme.ecosystem.service;
 import com.fixme.ecosystem.dto.InternationalInventoryIngresoDTO;
 import com.fixme.ecosystem.dto.LocalInventoryIngresoDTO;
 import com.fixme.ecosystem.dto.LiquidateImportDTO;
+import com.fixme.ecosystem.dto.InventoryUpdateDTO;
 import com.fixme.ecosystem.entity.InventoryItem;
 import com.fixme.ecosystem.entity.ProductVariant;
 import com.fixme.ecosystem.repository.InventoryItemRepository;
@@ -170,6 +171,63 @@ public class InventoryService {
      */
     public List<InventoryItem> findAvailable() {
         return inventoryItemRepository.findByStatus("DISPONIBLE");
+    }
+
+    /**
+     * Lista inventario completo o por estado
+     */
+    public List<InventoryItem> findAll(String status) {
+        if (status == null || status.isBlank()) {
+            return inventoryItemRepository.findAll();
+        }
+        return inventoryItemRepository.findByStatus(status);
+    }
+
+    /**
+     * Edita datos del inventario (ficha tecnica/precios)
+     */
+    @Transactional
+    public InventoryItem updateInventoryItem(Long inventoryItemId, InventoryUpdateDTO dto) {
+        InventoryItem item = inventoryItemRepository.findById(inventoryItemId)
+                .orElseThrow(() -> new IllegalArgumentException("InventoryItem no encontrada"));
+
+        if ("VENDIDO".equals(item.getStatus())) {
+            throw new IllegalArgumentException("No se puede editar un producto vendido");
+        }
+
+        if (dto.getSerialNumber() != null && !dto.getSerialNumber().equals(item.getSerialNumber())) {
+            if (inventoryItemRepository.findBySerialNumber(dto.getSerialNumber()).isPresent()) {
+                throw new IllegalArgumentException("Este Serial Number ya existe en el sistema");
+            }
+            item.setSerialNumber(dto.getSerialNumber());
+        }
+
+        if (dto.getProductName() != null) {
+            item.setProductName(dto.getProductName());
+        }
+        if (dto.getBrand() != null) {
+            item.setBrand(dto.getBrand());
+        }
+        if (dto.getModel() != null) {
+            item.setModel(dto.getModel());
+        }
+        if (dto.getSpecs() != null) {
+            item.setSpecs(dto.getSpecs());
+        }
+        if (dto.getSupplier() != null) {
+            item.setSupplier(dto.getSupplier());
+        }
+        if (dto.getEstimatedPrice() != null) {
+            item.setEstimatedPrice(dto.getEstimatedPrice());
+        }
+        if (dto.getPriceB2B() != null) {
+            item.setPriceB2B(dto.getPriceB2B());
+        }
+        if (dto.getPricePVP() != null) {
+            item.setPricePVP(dto.getPricePVP());
+        }
+
+        return inventoryItemRepository.save(item);
     }
 
     /**

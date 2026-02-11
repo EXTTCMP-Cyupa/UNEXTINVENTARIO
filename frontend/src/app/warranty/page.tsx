@@ -21,7 +21,7 @@ export default function WarrantyPage() {
       const data = await warrantyService.getWarrantyHistory(serialNumber);
       setWarranty(data);
     } catch (err) {
-      setError('No se encontró información de garantía para este número de serie');
+      setError('No se encontró información de garantía para este Serial o Código');
       console.error(err);
     } finally {
       setLoading(false);
@@ -38,7 +38,7 @@ export default function WarrantyPage() {
           <div className="flex gap-4">
             <input
               type="text"
-              placeholder="Ingrese número de serie"
+              placeholder="Ingrese Serial o Código FIX-XXXXX"
               value={serialNumber}
               onChange={(e) => setSerialNumber(e.target.value)}
               className="flex-1 border rounded px-4 py-2"
@@ -79,29 +79,28 @@ export default function WarrantyPage() {
                 <p className="font-semibold">{warranty.productName}</p>
               </div>
               <div>
-                <p className="text-gray-600 text-sm">SKU</p>
-                <p className="font-semibold">{warranty.productSku}</p>
-              </div>
-
-              <div>
-                <p className="text-gray-600 text-sm">Proveedor</p>
-                <p className="font-semibold">{warranty.importProvider}</p>
-              </div>
-              <div>
-                <p className="text-gray-600 text-sm">Fecha de Importación</p>
+                <p className="text-gray-600 text-sm">Marca / Modelo</p>
                 <p className="font-semibold">
-                  {new Date(warranty.importDate).toLocaleDateString()}
+                  {warranty.brand || '-'} / {warranty.model || '-'}
                 </p>
               </div>
 
               <div>
                 <p className="text-gray-600 text-sm">Estado</p>
                 <p className={`font-semibold ${
-                  warranty.status === 'AVAILABLE' ? 'text-green-600' :
-                  warranty.status === 'SOLD' ? 'text-blue-600' :
+                  warranty.status === 'DISPONIBLE' ? 'text-green-600' :
+                  warranty.status === 'VENDIDO' ? 'text-blue-600' :
                   'text-gray-600'
                 }`}>
                   {warranty.status}
+                </p>
+              </div>
+              <div>
+                <p className="text-gray-600 text-sm">Garantía hasta</p>
+                <p className="font-semibold">
+                  {warranty.warrantyEndDate
+                    ? new Date(warranty.warrantyEndDate).toLocaleDateString()
+                    : '-'}
                 </p>
               </div>
 
@@ -120,11 +119,25 @@ export default function WarrantyPage() {
                   <p className="font-semibold">{warranty.customerName}</p>
                 </div>
               )}
+
+              {warranty.qrToken && (
+                <div>
+                  <p className="text-gray-600 text-sm">QR Garantía</p>
+                  <p className="font-mono text-sm">{warranty.qrToken}</p>
+                </div>
+              )}
             </div>
 
             <div className="border-t pt-4 mt-4">
-              <p className="text-gray-600 text-sm">Precio Unitario (Costo Real)</p>
-              <p className="text-3xl font-bold text-secondary">${warranty.unitPrice.toFixed(2)}</p>
+              <p className="text-gray-600 text-sm">Precio de Venta</p>
+              <p className="text-3xl font-bold text-secondary">
+                ${warranty.salePrice ? warranty.salePrice.toFixed(2) : '0.00'}
+              </p>
+              {warranty.landedCost && (
+                <p className="text-sm text-gray-600 mt-2">
+                  Costo real: ${warranty.landedCost.toFixed(2)}
+                </p>
+              )}
             </div>
           </div>
         )}

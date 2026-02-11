@@ -92,6 +92,16 @@ public class InventoryItem {
     @Column
     private LocalDateTime soldDate;     // Fecha de venta
 
+    // RESERVA (venta en proceso)
+    @Column(length = 100)
+    private String reservedToCustomer;
+
+    @Column
+    private LocalDateTime reservedDate;
+
+    @Column(precision = 10, scale = 2)
+    private BigDecimal reservedPrice;
+
     // TRAZABILIDAD
     @Column(updatable = false)
     @Builder.Default

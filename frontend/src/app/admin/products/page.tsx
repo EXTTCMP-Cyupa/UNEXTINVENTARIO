@@ -4,11 +4,12 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import InventoryIngresoForm from '@/components/InventoryIngresoForm';
+import InventoryList from '@/components/InventoryList';
 import TransitManagementBoard from '@/components/TransitManagementBoard';
 import TraceabilitySearch from '@/components/TraceabilitySearch';
 import { useAuthStore } from '@/store/authStore';
 
-type TabType = 'ingreso' | 'transit' | 'traceability';
+type TabType = 'ingreso' | 'transit' | 'traceability' | 'list';
 
 export default function AdminProductsPage() {
   const router = useRouter();
@@ -44,6 +45,7 @@ export default function AdminProductsPage() {
   }
 
   const tabs: { id: TabType; label: string; icon: string }[] = [
+    { id: 'list', label: 'Listado', icon: '🧾' },
     { id: 'ingreso', label: 'Ingreso de Mercadería', icon: '📦' },
     { id: 'transit', label: 'Administración de Tránsito', icon: '✈️' },
     { id: 'traceability', label: 'Trazabilidad', icon: '🔍' },
@@ -79,6 +81,7 @@ export default function AdminProductsPage() {
           </div>
 
           {/* Tab Content */}
+          {activeTab === 'list' && <InventoryList />}
           {activeTab === 'ingreso' && <InventoryIngresoForm />}
           {activeTab === 'transit' && <TransitManagementBoard />}
           {activeTab === 'traceability' && <TraceabilitySearch />}
@@ -90,17 +93,23 @@ export default function AdminProductsPage() {
               <div className="flex gap-3">
                 <span className="font-bold text-blue-600">1.</span>
                 <p>
-                  <strong>Ingreso de Mercadería:</strong> Registra la entrada (Local o Internacional)
+                  <strong>Listado:</strong> Visualiza productos, edita datos y gestiona ventas
                 </p>
               </div>
               <div className="flex gap-3">
                 <span className="font-bold text-blue-600">2.</span>
                 <p>
-                  <strong>Liquidación (si es Internacional):</strong> Ingresa aduanas/flete y serial para marcar como disponible
+                  <strong>Ingreso de Mercadería:</strong> Registra la entrada (Local o Internacional)
                 </p>
               </div>
               <div className="flex gap-3">
                 <span className="font-bold text-blue-600">3.</span>
+                <p>
+                  <strong>Liquidación (si es Internacional):</strong> Ingresa aduanas/flete y serial para marcar como disponible
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <span className="font-bold text-blue-600">4.</span>
                 <p>
                   <strong>Trazabilidad:</strong> Busca cualquier producto por Serial Number para ver su historial completo
                 </p>

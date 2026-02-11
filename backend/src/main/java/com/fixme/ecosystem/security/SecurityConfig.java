@@ -41,6 +41,8 @@ public class SecurityConfig {
                         .requestMatchers("/products/public").permitAll()
                         .requestMatchers("/warranty/**").permitAll()
                         .requestMatchers("/imports/**").hasRole("ADMIN")
+                        .requestMatchers("/sales/**").hasRole("ADMIN")
+                        .requestMatchers("/users/**").hasRole("ADMIN")
                         .requestMatchers("/products/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )

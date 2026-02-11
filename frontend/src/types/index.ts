@@ -69,9 +69,20 @@ export interface InventoryItem {
   id: number;
   serialNumber: string;
   internalCode: string;
-  productVariantId: number;
-  importId: number;
+  productName?: string;
+  brand?: string;
+  model?: string;
+  specs?: string;
+  purchaseType?: string;
+  supplier?: string;
+  estimatedPrice?: number;
+  priceB2B?: number;
+  pricePVP?: number;
+  landedCost?: number;
   status: string;
+  reservedToCustomer?: string;
+  reservedDate?: string;
+  reservedPrice?: number;
   soldToCustomer?: string;
   soldDate?: string;
 }
@@ -80,12 +91,15 @@ export interface WarrantyHistory {
   serialNumber: string;
   internalCode: string;
   productName: string;
-  productSku: string;
-  importProvider: string;
-  importDate: string;
+  brand?: string;
+  model?: string;
   customerName?: string;
   saleDate?: string;
-  unitPrice: number;
+  warrantyEndDate?: string;
+  warrantyStatus?: string;
+  qrToken?: string;
+  salePrice?: number;
+  landedCost?: number;
   status: string;
 }
 
