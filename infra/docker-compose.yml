@@ -1,0 +1,30 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: fixme-postgres
+    environment:
+      POSTGRES_DB: fixme_ecosystem
+      POSTGRES_USER: fixme_admin
+      POSTGRES_PASSWORD: fixme_secure_pass_change_me
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - fixme_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fixme_admin -d fixme_ecosystem"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  fixme_network:
+    driver: bridge

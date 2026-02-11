@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: fixme-ecosystem
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5433/fixme_ecosystem
+    username: fixme_admin
+    password: fixme_secure_pass_change_me
+    driver-class-name: org.postgresql.Driver
+  
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 20
+          fetch_size: 50
+        order_inserts: true
+        order_updates: true
+        types:
+          jackson_default_lob_handler: org.hibernate.type.descriptor.java.TypeJavaClassDescriptor
+  
+  jackson:
+    serialization:
+      indent-output: true
+    deserialization:
+      fail-on-unknown-properties: false
+
+logging:
+  level:
+    root: INFO
+    com.fixme: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+jwt:
+  secret: fixme-super-secret-key-change-in-production-please-make-it-very-secure
+  expiration: 86400000  # 24 horas en ms
