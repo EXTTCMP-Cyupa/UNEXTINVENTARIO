@@ -53,7 +53,7 @@ public class SalesService {
                 : resolvePriceForCustomer(item, customer);
 
         item.setStatus("RESERVADO");
-        item.setReservedToCustomer(customerName);
+        item.setReservedCustomer(customerName);
         item.setReservedDate(LocalDateTime.now());
         item.setReservedPrice(price);
 
@@ -108,7 +108,7 @@ public class SalesService {
         item.setStatus("VENDIDO");
         item.setSoldToCustomer(customerName);
         item.setSoldDate(LocalDateTime.now());
-        item.setReservedToCustomer(null);
+        item.setReservedCustomer(null);
         item.setReservedDate(null);
         item.setReservedPrice(null);
         inventoryItemRepository.save(item);

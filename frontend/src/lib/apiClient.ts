@@ -10,9 +10,14 @@ const apiClient = axios.create({
 // Interceptor para agregar token JWT
 apiClient.interceptors.request.use((config) => {
   const storeToken = useAuthStore.getState().token;
-  const token = storeToken || localStorage.getItem('token');
+  const token = storeToken || (typeof window !== 'undefined' ? localStorage.getItem('token') : null);
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    config.headers = config.headers || {};
+    if (typeof (config.headers as any).set === 'function') {
+      (config.headers as any).set('Authorization', `Bearer ${token}`);
+    } else {
+      (config.headers as any).Authorization = `Bearer ${token}`;
+    }
   }
   return config;
 });

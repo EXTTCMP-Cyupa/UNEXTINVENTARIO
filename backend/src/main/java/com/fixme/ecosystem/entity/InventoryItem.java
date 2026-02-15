@@ -29,7 +29,7 @@ public class InventoryItem {
     @JoinColumn(name = "import_id")
     private Import importRecord;
 
-    // FICHA TÉCNICA (aquí se guarda para compras sin ProductVariant aún)
+    // ========== FICHA TÉCNICA ==========
     @Column(length = 200)
     private String productName;         // ej: "Laptop Dell Latitude 5420"
 
@@ -42,67 +42,98 @@ public class InventoryItem {
     @Column(columnDefinition = "TEXT")
     private String specs;               // ej: "i5-11400H, 16GB RAM, 512GB SSD"
 
-    // IDENTIDAD DEL PRODUCTO
+    // ========== IDENTIDAD ==========
     @Column(unique = true, length = 100)
-    private String serialNumber;        // Puede ser NULL para compras internacionales en tránsito
+    private String serialNumber;        // Puede ser NULL hasta que llegue al local
 
     @Column(nullable = false, unique = true, length = 100)
     private String internalCode;        // FIX-XXXXX (generado por el sistema)
 
-    // ESTADO Y TIPO
+    // ========== ESTADO PRINCIPAL (PIPELINE) ==========
     @Column(nullable = false)
     @Builder.Default
-    private String status = "DISPONIBLE"; // COMPRADO, EN_TRANSITO, STOCK_EN_LOCAL, DISPONIBLE, RESERVADO, VENDIDO, DEFECTUOSO
+    private String status = "COMPRADO"; 
+    // COMPRADO → PREPARACION_ENVIO → EN_TRANSITO → STOCK_LOCAL → VENDIDO
 
     @Column(nullable = false)
     @Builder.Default
     private String purchaseType = "LOCAL"; // LOCAL, INTERNATIONAL
 
-    // COSTOS
+    // ========== SUB-ESTADO LOGÍSTICO (Solo EN_TRANSITO) ==========
+    @Column(length = 50)
+    private String logisticsStage; 
+    // ENVIADO_AL_PAIS, EN_ADUANA, EN_CAMINO_AL_LOCAL
+
+    // ========== COSTOS ==========
     @Column(precision = 10, scale = 2)
-    private BigDecimal costFob;         // FOB (compras internacionales)
+    private BigDecimal costFob;         // Costo FOB (compras internacionales)
 
     @Column(precision = 10, scale = 2)
     private BigDecimal costLocal;       // Factura local (compras locales)
 
     @Column(precision = 10, scale = 2)
-    private BigDecimal extraCosts;      // Aduana + Flete + otros gastos
+    private BigDecimal costShipping;    // Costo de envío internacional
 
     @Column(precision = 10, scale = 2)
-    private BigDecimal landedCost;      // Costo final = FOB + extras OR costLocal + extras
-
-    // PRECIOS
-    @Column(precision = 10, scale = 2)
-    private BigDecimal estimatedPrice;  // Precio tentativo para web (compras internacionales)
+    private BigDecimal costCustoms;     // Costo de aduana
 
     @Column(precision = 10, scale = 2)
-    private BigDecimal priceB2B;        // Precio B2B final
+    private BigDecimal extraCosts;      // Otros gastos
 
     @Column(precision = 10, scale = 2)
-    private BigDecimal pricePVP;        // Precio PVP (público) final
+    private BigDecimal landedCost;      // Costo final total
 
-    // PROVEEDOR
+    // ========== PRECIOS ==========
+    @Column(precision = 10, scale = 2)
+    private BigDecimal priceReferential; // Precio referencial en PREPARACION_ENVIO
+
+    @Column(precision = 10, scale = 2)
+    private BigDecimal priceProvider;   // Precio del proveedor
+
+    @Column(precision = 10, scale = 2)
+    private BigDecimal priceB2B;        // Precio mayorista oficial
+
+    @Column(precision = 10, scale = 2)
+    private BigDecimal pricePVP;        // Precio público oficial
+
+    // ========== PROVEEDOR Y ORIGEN ==========
     @Column(length = 150)
-    private String supplier;            // eBay, Amazon, Distribuidor XYZ, etc
+    private String supplier;            // eBay, Amazon, etc.
 
-    // VENTA
     @Column(length = 100)
-    private String soldToCustomer;      // Cliente que compró
+    private String productOwner;        // Inversor/Dueño del producto (quién lo compró)
+
+    // ========== RESERVA (disponible EN_TRANSITO y STOCK_LOCAL) ==========
+    @Column
+    @Builder.Default
+    private Boolean isReserved = false; // ¿Producto reservado?
+
+    @Column(length = 100)
+    private String reservedCustomer;    // Nombre del cliente que reservó
+
+    @Column
+    private LocalDateTime reservedDate; // Fecha de reserva
+
+    @Column(precision = 10, scale = 2)
+    private BigDecimal reservationAmount; // Anticipo pagado en reserva
+
+    @Column(precision = 10, scale = 2)
+    private BigDecimal reservedPrice;   // Precio pactado en reserva
+
+    // ========== VENTA FINAL ==========
+    @Column(length = 100)
+    private String soldToCustomer;      // Cliente final
 
     @Column
     private LocalDateTime soldDate;     // Fecha de venta
 
-    // RESERVA (venta en proceso)
-    @Column(length = 100)
-    private String reservedToCustomer;
-
-    @Column
-    private LocalDateTime reservedDate;
+    @Column(precision = 10, scale = 2)
+    private BigDecimal salePrice;       // Precio de venta final
 
     @Column(precision = 10, scale = 2)
-    private BigDecimal reservedPrice;
+    private BigDecimal profit;          // Utilidad = salePrice - landedCost
 
-    // TRAZABILIDAD
+    // ========== TRAZABILIDAD ==========
     @Column(updatable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();

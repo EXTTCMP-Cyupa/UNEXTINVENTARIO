@@ -9,6 +9,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -36,14 +37,15 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/dev/**").permitAll() // ⚠️ SOLO PARA DESARROLLO
-                        .requestMatchers("/auth/**").permitAll()  // /api/auth/** por el context-path
-                        .requestMatchers("/products/public").permitAll()
-                        .requestMatchers("/warranty/**").permitAll()
-                        .requestMatchers("/imports/**").hasRole("ADMIN")
-                        .requestMatchers("/sales/**").hasRole("ADMIN")
-                        .requestMatchers("/users/**").hasRole("ADMIN")
-                        .requestMatchers("/products/**").hasRole("ADMIN")
+                    .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/api/dev/**").permitAll() // ⚠️ SOLO PARA DESARROLLO
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/products/public").permitAll()
+                        .requestMatchers("/api/warranty/**").permitAll()
+                        .requestMatchers("/api/imports/**").hasRole("ADMIN")
+                        .requestMatchers("/api/sales/**").hasRole("ADMIN")
+                        .requestMatchers("/api/users/**").hasRole("ADMIN")
+                        .requestMatchers("/api/products/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider), UsernamePasswordAuthenticationFilter.class)

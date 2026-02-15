@@ -14,9 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
-import java.math.BigDecimal;
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/products")
@@ -27,220 +25,195 @@ public class ProductController {
     private final ProductService productService;
     private final InventoryService inventoryService;
 
-    /**
-     * Catálogo público - Visible para todos
-     * Muestra precios PVP
-     */
+    // ============== CATÁLOGOS ==============
+
     @GetMapping("/public")
     public ResponseEntity<List<ProductVariantDTO>> getPublicCatalog() {
         log.info("Acceso al catálogo público");
-        List<ProductVariantDTO> catalog = productService.getPublicCatalog();
-        return ResponseEntity.ok(catalog);
+        return ResponseEntity.ok(productService.getPublicCatalog());
     }
 
-    /**
-     * Catálogo B2B - Solo para partners con JWT
-     * Muestra precios especiales para negocios
-     */
     @GetMapping("/b2b")
     @PreAuthorize("hasRole('PARTNER') or hasRole('ADMIN')")
     public ResponseEntity<List<ProductVariantDTO>> getB2BCatalog() {
         log.info("Acceso al catálogo B2B");
-        List<ProductVariantDTO> catalog = productService.getB2BCatalog();
-        return ResponseEntity.ok(catalog);
+        return ResponseEntity.ok(productService.getB2BCatalog());
     }
 
-    /**
-     * Obtener una variante específica por SKU
-     */
     @GetMapping("/{sku}")
     public ResponseEntity<ProductVariantDTO> getVariantBySku(@PathVariable String sku) {
-        log.info("Buscando variante con SKU: {}", sku);
         return ResponseEntity.ok(productService.getVariantBySku(sku));
     }
 
-    /**
-     * Crear un nuevo producto - SOLO ADMIN
-     * POST /api/products
-     */
+    // ============== GESTIÓN DE PRODUCTOS ==============
+
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Product> createProduct(@Valid @RequestBody CreateProductDTO dto) {
-        log.info("Creando nuevo producto: {} {}", dto.getBrand(), dto.getName());
-        Product product = productService.createProduct(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(product);
+        log.info("Creando producto: {} {}", dto.getBrand(), dto.getName());
+        return ResponseEntity.status(HttpStatus.CREATED).body(productService.createProduct(dto));
     }
 
-    /**
-     * Crear una variante de producto - SOLO ADMIN
-     * POST /api/products/variants
-     */
     @PostMapping("/variants")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ProductVariant> createProductVariant(@Valid @RequestBody CreateProductVariantDTO dto) {
-        log.info("Creando variante - SKU: {}", dto.getSku());
-        ProductVariant variant = productService.createProductVariant(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(variant);
+        log.info("Creando variante: {}", dto.getSku());
+        return ResponseEntity.status(HttpStatus.CREATED).body(productService.createProductVariant(dto));
     }
 
-    // ======================== INVENTORY ENDPOINTS ========================
+    // ============== GESTIÓN DE INVENTARIO ==============
 
-    /**
-     * Registrar ingreso de producto INTERNACIONAL
-     * Estado inicial: COMPRADO
-     */
+    // Paso 1: COMPRADO - Registro de Compra
+
     @PostMapping("/inventory/ingreso/international")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<InventoryItem> registerInternational(
+    public ResponseEntity<InventoryItem> registerInternationalPurchase(
             @Valid @RequestBody InternationalInventoryIngresoDTO dto) {
-        log.info("Registrando compra internacional - Producto: {}", dto.getProductName());
-        InventoryItem item = inventoryService.registerInternationalPurchase(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(item);
+        log.info("📦 Registrando compra INTERNACIONAL");
+        return ResponseEntity.status(HttpStatus.CREATED).body(inventoryService.registerInternationalPurchase(dto));
     }
 
-    /**
-     * Registrar ingreso de producto LOCAL
-     * Estado inicial: DISPONIBLE
-     */
     @PostMapping("/inventory/ingreso/local")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<InventoryItem> registerLocal(
+    public ResponseEntity<InventoryItem> registerLocalPurchase(
             @Valid @RequestBody LocalInventoryIngresoDTO dto) {
-        log.info("Registrando compra local - Serial: {}", dto.getSerialNumber());
-        InventoryItem item = inventoryService.registerLocalPurchase(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(item);
+        log.info("📦 Registrando compra LOCAL");
+        return ResponseEntity.status(HttpStatus.CREATED).body(inventoryService.registerLocalPurchase(dto));
     }
 
-    /**
-     * Marcar como "En Tránsito"
-     * Cambia estado de COMPRADO a EN_TRANSITO
-     */
-    @PostMapping("/inventory/move-to-transit/{inventoryItemId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<InventoryItem> moveToTransit(@PathVariable Long inventoryItemId) {
-        log.info("Moviendo a EN_TRANSITO - ID: {}", inventoryItemId);
-        InventoryItem item = inventoryService.moveToTransit(inventoryItemId);
-        return ResponseEntity.ok(item);
-    }
+    // Paso 2: PREPARACION_ENVIO - Preparar Envío
 
-    /**
-     * Liquidar importación (pagar aduanas/flete, asignar serial)
-     * Cambia estado de EN_TRANSITO a STOCK_EN_LOCAL
-     */
-    @PostMapping("/inventory/liquidate")
+    @PostMapping("/inventory/prepare-shipment/{inventoryItemId}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<InventoryItem> liquidateImport(
-            @Valid @RequestBody LiquidateImportDTO dto) {
-        log.info("Liquidando importación - ID: {}", dto.getInventoryItemId());
-        InventoryItem item = inventoryService.liquidateImport(dto);
-        return ResponseEntity.ok(item);
-    }
-
-    /**
-     * Activar para venta (configurar precios finales)
-     * Cambia estado de STOCK_EN_LOCAL a DISPONIBLE
-     */
-    @PostMapping("/inventory/activate-sale/{inventoryItemId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<InventoryItem> activateForSale(
+    public ResponseEntity<InventoryItem> prepareShipment(
             @PathVariable Long inventoryItemId,
-            @RequestParam BigDecimal priceB2B,
-            @RequestParam BigDecimal pricePVP) {
-        log.info("Activando para venta - ID: {} - B2B: {} - PVP: {}", inventoryItemId, priceB2B, pricePVP);
-        InventoryItem item = inventoryService.setAvailableForSale(inventoryItemId, priceB2B, pricePVP);
-        return ResponseEntity.ok(item);
+            @Valid @RequestBody PrepareShipmentDTO dto) {
+        log.info("📋 Preparando envío - ID: {}", inventoryItemId);
+        dto.setInventoryItemId(inventoryItemId);
+        return ResponseEntity.ok(inventoryService.prepareShipment(dto));
     }
 
-    /**
-     * Listar todos los productos COMPRADOS (esperando envío)
-     */
-    @GetMapping("/inventory/purchased")
+    // Paso 3: EN_TRANSITO - Envío y Seguimiento
+
+    @PostMapping("/inventory/send-transit/{inventoryItemId}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<InventoryItem>> getPurchased() {
-        log.info("Obteniendo productos comprados");
-        List<InventoryItem> items = inventoryService.findPurchased();
-        return ResponseEntity.ok(items);
+    public ResponseEntity<InventoryItem> sendToTransit(
+            @PathVariable Long inventoryItemId,
+            @Valid @RequestBody SendToTransitDTO dto) {
+        log.info("✈️ Enviando a tránsito - ID: {}", inventoryItemId);
+        dto.setInventoryItemId(inventoryItemId);
+        return ResponseEntity.ok(inventoryService.sendToTransit(dto));
     }
 
-    /**
-     * Listar todos los productos EN_TRANSITO (en camino)
-     */
-    @GetMapping("/inventory/transit")
+    @PostMapping("/inventory/update-logistics/{inventoryItemId}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<InventoryItem>> getInTransit() {
-        log.info("Obteniendo productos en tránsito");
-        List<InventoryItem> items = inventoryService.findInTransit();
-        return ResponseEntity.ok(items);
+    public ResponseEntity<InventoryItem> updateLogistics(
+            @PathVariable Long inventoryItemId,
+            @Valid @RequestBody UpdateLogisticsStageDTO dto) {
+        log.info("📍 Actualizando etapa logística - ID: {}", inventoryItemId);
+        dto.setInventoryItemId(inventoryItemId);
+        return ResponseEntity.ok(inventoryService.updateLogisticsStage(dto));
     }
 
-    /**
-     * Listar todos los productos en STOCK_EN_LOCAL (esperando precios)
-     */
-    @GetMapping("/inventory/local-stock")
+    @PostMapping("/inventory/reserve/{inventoryItemId}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<InventoryItem>> getLocalStock() {
-        log.info("Obteniendo productos en stock local");
-        List<InventoryItem> items = inventoryService.findInLocalStock();
-        return ResponseEntity.ok(items);
+    public ResponseEntity<InventoryItem> reserveProduct(
+            @PathVariable Long inventoryItemId,
+            @Valid @RequestBody ReserveProductDTO dto) {
+        log.info("🔒 Reservando producto - ID: {}", inventoryItemId);
+        dto.setInventoryItemId(inventoryItemId);
+        return ResponseEntity.ok(inventoryService.reserveProduct(dto));
     }
 
-    /**
-     * Buscar producto por Serial Number
-     * Trazabilidad: Muestra origen, proveedor, costo final y cliente
-     */
+    // Paso 4: STOCK_LOCAL - Recepción en Local
+
+    @PostMapping("/inventory/confirm-local-receipt/{inventoryItemId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<InventoryItem> confirmLocalReceipt(
+            @PathVariable Long inventoryItemId,
+            @Valid @RequestBody ConfirmLocalReceiptDTO dto) {
+        log.info("📦 Confirmando recepción en local - ID: {}", inventoryItemId);
+        dto.setInventoryItemId(inventoryItemId);
+        return ResponseEntity.ok(inventoryService.confirmLocalReceipt(dto));
+    }
+
+    @PostMapping("/inventory/mark-available/{inventoryItemId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<InventoryItem> markAvailable(@PathVariable Long inventoryItemId) {
+        return ResponseEntity.ok(inventoryService.markAvailable(inventoryItemId));
+    }
+
+    // Paso 5: VENDIDO - Venta Final
+
+    @PostMapping("/inventory/final-sale/{inventoryItemId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<InventoryItem> finalSale(
+            @PathVariable Long inventoryItemId,
+            @Valid @RequestBody FinalSaleDTO dto) {
+        log.info("💰 Registrando venta final - ID: {}", inventoryItemId);
+        dto.setInventoryItemId(inventoryItemId);
+        return ResponseEntity.ok(inventoryService.finalSale(dto));
+    }
+
+    // ============== BÚSQUEDAS Y LISTADOS ==============
+
     @GetMapping("/inventory/search/{serialNumber}")
     public ResponseEntity<InventoryItem> searchBySerialNumber(@PathVariable String serialNumber) {
-        log.info("Buscando producto - Serial: {}", serialNumber);
-        Optional<InventoryItem> item = inventoryService.findBySerialNumber(serialNumber);
-        return item.map(ResponseEntity::ok)
-                   .orElseGet(() -> ResponseEntity.notFound().build());
+        log.info("Buscando por Serial: {}", serialNumber);
+        return inventoryService.findBySerialNumber(serialNumber)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    /**
-     * Listar todos los productos disponibles
-     */
-    @GetMapping("/inventory/available")
-    public ResponseEntity<List<InventoryItem>> getAvailable() {
-        log.info("Obteniendo productos disponibles");
-        List<InventoryItem> items = inventoryService.findAvailable();
-        return ResponseEntity.ok(items);
-    }
-
-    /**
-     * Listar inventario completo o filtrado por estado
-     */
     @GetMapping("/inventory/list")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<InventoryItem>> getInventoryList(
+    public ResponseEntity<List<InventoryItem>> getInventory(
             @RequestParam(required = false) String status) {
-        log.info("Obteniendo inventario - Estado: {}", status);
-        List<InventoryItem> items = inventoryService.findAll(status);
-        return ResponseEntity.ok(items);
+        log.info("Obteniendo inventario - Estado: {}", status != null ? status : "TODOS");
+        return ResponseEntity.ok(inventoryService.findAll(status));
     }
 
-    /**
-     * Editar datos de un producto en inventario
-     */
-    @PutMapping("/inventory/{inventoryItemId}")
+    @GetMapping("/inventory/comprado")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<InventoryItem> updateInventoryItem(
-            @PathVariable Long inventoryItemId,
-            @RequestBody InventoryUpdateDTO dto) {
-        log.info("Actualizando inventario - ID: {}", inventoryItemId);
-        InventoryItem item = inventoryService.updateInventoryItem(inventoryItemId, dto);
-        return ResponseEntity.ok(item);
+    public ResponseEntity<List<InventoryItem>> getPurchased() {
+        return ResponseEntity.ok(inventoryService.findPurchased());
     }
 
-    /**
-     * Marcar un producto como vendido
-     */
-    @PutMapping("/inventory/sold/{inventoryItemId}")
+    @GetMapping("/inventory/preparacion")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<InventoryItem> markAsSold(
-            @PathVariable Long inventoryItemId,
-            @RequestParam String customerName) {
-        log.info("Marcando como vendido - ID: {} - Cliente: {}", inventoryItemId, customerName);
-        InventoryItem item = inventoryService.markAsSold(inventoryItemId, customerName);
-        return ResponseEntity.ok(item);
+    public ResponseEntity<List<InventoryItem>> getInPreparation() {
+        return ResponseEntity.ok(inventoryService.findInPreparation());
+    }
+
+    @GetMapping("/inventory/transito")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<InventoryItem>> getInTransit() {
+        return ResponseEntity.ok(inventoryService.findInTransit());
+    }
+
+    @GetMapping("/inventory/stock-local")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<InventoryItem>> getLocalStock() {
+        return ResponseEntity.ok(inventoryService.findInLocalStock());
+    }
+
+    @GetMapping("/inventory/disponible")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<InventoryItem>> getAvailable() {
+        return ResponseEntity.ok(inventoryService.findAvailable());
+    }
+
+    @GetMapping("/inventory/vendido")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<InventoryItem>> getSold() {
+        return ResponseEntity.ok(inventoryService.findSold());
+    }
+
+    @DeleteMapping("/inventory/{inventoryItemId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteItem(@PathVariable Long inventoryItemId) {
+        log.info("Eliminando producto - ID: {}", inventoryItemId);
+        inventoryService.deleteItem(inventoryItemId);
+        return ResponseEntity.noContent().build();
     }
 }

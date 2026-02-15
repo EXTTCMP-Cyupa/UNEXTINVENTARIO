@@ -8,25 +8,27 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 
 /**
- * DTO para "Recibir Mercadería" - Liquidación de compra internacional
- * En este punto el paquete ya llegó y tienes los costos finales
+ * DTO para "Confirmar Envío Internacional"
+ * Paso donde se ingresan costos de importación y precios de venta
+ * Estado: COMPRADO → EN_TRANSITO (con ENVIADO como shippingStatus)
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class LiquidateImportDTO {
-    private Long inventoryItemId;       // El registro EN_TRANSITO
+    private Long inventoryItemId;       // El registro COMPRADO
     
     // Gastos de importación
     private BigDecimal aduanaCost;      // Costo de aduana
     private BigDecimal fleteCourrierCost; // Costo de flete courier/DHL/Fedex
     
-    // Identidad del producto (ahora lo tienes en mano)
-    private String serialNumber;        // Scanner: SN del producto físico recibido
+    // Precios de venta referenciales
+    private BigDecimal priceB2B;        // Precio B2B sugerido
+    private BigDecimal pricePVP;        // Precio PVP sugerido
     
-    // Precios finales (pueden cambiar después de ver el producto real)
-    private BigDecimal priceB2B;        // Precio B2B ajustado
-    private BigDecimal pricePVP;        // Precio PVP ajustado
+    // Notas del envío
+    private String trackingNumber;      // Número de seguimiento
+    private String notes;               // Notas adicionales del envío
 }
 

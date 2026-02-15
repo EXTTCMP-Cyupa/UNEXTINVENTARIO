@@ -1,13 +1,8 @@
 package com.fixme.ecosystem.service;
 
-import com.fixme.ecosystem.dto.InternationalInventoryIngresoDTO;
-import com.fixme.ecosystem.dto.LocalInventoryIngresoDTO;
-import com.fixme.ecosystem.dto.LiquidateImportDTO;
-import com.fixme.ecosystem.dto.InventoryUpdateDTO;
+import com.fixme.ecosystem.dto.*;
 import com.fixme.ecosystem.entity.InventoryItem;
-import com.fixme.ecosystem.entity.ProductVariant;
 import com.fixme.ecosystem.repository.InventoryItemRepository;
-import com.fixme.ecosystem.repository.ProductVariantRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,59 +20,40 @@ import java.util.UUID;
 public class InventoryService {
 
     private final InventoryItemRepository inventoryItemRepository;
-    private final ProductVariantRepository productVariantRepository;
+    private final TransitionValidator transitionValidator;
 
-    /**
-     * Paso 1: Crear un registro de compra INTERNACIONAL
-     * Estado: COMPRADO
-     * Sin Serial Number aún (llegará después)
-     * Sin ProductVariant aún (se asignará después)
-     * 
-     * Resultado: Orden confirmada, esperando envío
-     */
+    // =================== PASO 1: COMPRADO ===================
+
     @Transactional
     public InventoryItem registerInternationalPurchase(InternationalInventoryIngresoDTO dto) {
-        log.info("Registrando compra internacional - {}", dto.getProductName());
+        log.info("📦 [COMPRADO] Registrando compra internacional - {}", dto.getProductName());
 
-        // Generar código interno
         String internalCode = generateInternalCode();
 
         InventoryItem item = InventoryItem.builder()
-            .productName(dto.getProductName())       // Guardamos la ficha técnica directamente
+            .productName(dto.getProductName())
             .brand(dto.getBrand())
             .model(dto.getModel())
             .specs(dto.getSpecs())
             .internalCode(internalCode)
             .purchaseType("INTERNATIONAL")
-            .status("COMPRADO")                      // 🟡 COMPRADO (orden confirmada)
+            .status("COMPRADO")
             .costFob(dto.getCostFob())
-            .estimatedPrice(dto.getEstimatedPrice()) // Precio tentativo para la web
             .supplier(dto.getSupplier())
-            // Serial Number: null por ahora
-            // ProductVariant: null por ahora
+            .isReserved(false)
             .build();
 
         InventoryItem saved = inventoryItemRepository.save(item);
-        log.info("Compra internacional creada - Código: {} - Estado: COMPRADO", internalCode);
+        log.info("✅ Compra INTERNACIONAL creada - {} - Costo FOB: ${}", internalCode, dto.getCostFob());
         return saved;
     }
 
-    /**
-     * Paso 1: Crear un registro de compra LOCAL
-     * Estado: DISPONIBLE (inmediatamente)
-     * Con Serial Number (porque ya lo tienes)
-     * Costo final = costInvoice + extraCosts
-     * 
-     * Resultado: El producto ya está disponible en el catálogo
-     */
     @Transactional
     public InventoryItem registerLocalPurchase(LocalInventoryIngresoDTO dto) {
-        log.info("Registrando compra local - {} - Serial: {}", dto.getProductName(), dto.getSerialNumber());
+        log.info("📦 [STOCK_LOCAL] Registrando compra LOCAL - {} - Serial: {}", dto.getProductName(), dto.getSerialNumber());
 
-        // Generar código interno
         String internalCode = generateInternalCode();
 
-        // Calcular costo final
         BigDecimal landedCost = dto.getCostInvoice()
             .add(dto.getExtraCosts() != null ? dto.getExtraCosts() : BigDecimal.ZERO);
 
@@ -86,163 +62,226 @@ public class InventoryService {
             .brand(dto.getBrand())
             .model(dto.getModel())
             .specs(dto.getSpecs())
-            .serialNumber(dto.getSerialNumber())     // 📌 Ya lo tienes
+            .serialNumber(dto.getSerialNumber())
             .internalCode(internalCode)
             .purchaseType("LOCAL")
-            .status("DISPONIBLE")                    // 🟢 DISPONIBLE inmediatamente
+            .status("STOCK_LOCAL")
             .costLocal(dto.getCostInvoice())
             .extraCosts(dto.getExtraCosts())
             .landedCost(landedCost)
-            .priceB2B(dto.getPriceB2B())             // Precios activados
+            .priceB2B(dto.getPriceB2B())
             .pricePVP(dto.getPricePVP())
             .supplier(dto.getSupplier())
+            .isReserved(false)
             .build();
 
         InventoryItem saved = inventoryItemRepository.save(item);
-        log.info("Compra local creada - Código: {} - Estado: DISPONIBLE - Costo Real: {}", 
-                 internalCode, landedCost);
+        log.info("✅ Compra LOCAL creada - {} - Estado: STOCK_LOCAL - Listo para vender", internalCode);
         return saved;
     }
 
-    /**
-     * Paso 2 (INTERNACIONAL): Marcar como "En Tránsito"
-     * Estado: COMPRADO → EN_TRANSITO
-     */
+    // =================== PASO 2: PREPARACION_ENVIO ===================
+
     @Transactional
-    public InventoryItem moveToTransit(Long inventoryItemId) {
-        log.info("Moviendo a EN_TRANSITO - ID: {}", inventoryItemId);
-
-        InventoryItem item = inventoryItemRepository.findById(inventoryItemId)
-            .orElseThrow(() -> new IllegalArgumentException("InventoryItem no encontrada"));
-
-        if (!"COMPRADO".equals(item.getStatus())) {
-            throw new IllegalArgumentException("El producto debe estar en estado COMPRADO");
-        }
-
-        item.setStatus("EN_TRANSITO");                   // 🔵 EN TRÁNSITO
-        InventoryItem saved = inventoryItemRepository.save(item);
-        log.info("Producto movido a EN_TRANSITO - Código: {}", item.getInternalCode());
-        return saved;
-    }
-
-    /**
-     * Paso 3 (INTERNACIONAL): "Llegó al Local"
-     * El paquete llegó físicamente, pagas aduana/flete, asignas Serial Number
-     * Matemática: FOB + Aduana + Flete = Costo Real Final
-     * Estado: EN_TRANSITO → STOCK_EN_LOCAL
-     * 
-     * Resultado: Producto físicamente en el local, esperando configuración de precios
-     */
-    @Transactional
-    public InventoryItem liquidateImport(LiquidateImportDTO dto) {
-        log.info("Liquidando importación - ID: {}", dto.getInventoryItemId());
+    public InventoryItem prepareShipment(PrepareShipmentDTO dto) {
+        log.info("📋 [PREPARACION_ENVIO] Preparando envío - ID: {}", dto.getInventoryItemId());
 
         InventoryItem item = inventoryItemRepository.findById(dto.getInventoryItemId())
-            .orElseThrow(() -> new IllegalArgumentException("InventoryItem no encontrada"));
+            .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado"));
 
-        if (!"INTERNATIONAL".equals(item.getPurchaseType())) {
-            throw new IllegalArgumentException("Solo se pueden liquidar compras internacionales");
+        transitionValidator.validateTransition(item.getStatus(), "PREPARACION_ENVIO");
+
+        item.setCostShipping(new BigDecimal(dto.getCostShipping() != null ? dto.getCostShipping() : 0));
+        item.setCostCustoms(new BigDecimal(dto.getCostCustoms() != null ? dto.getCostCustoms() : 0));
+        item.setPriceReferential(new BigDecimal(dto.getPriceReferential() != null ? dto.getPriceReferential() : 0));
+        item.setPriceProvider(new BigDecimal(dto.getPriceProvider() != null ? dto.getPriceProvider() : 0));
+        
+        // Ingresar precios de venta UNA SOLA VEZ en PREPARACION
+        if (dto.getPriceB2B() != null && dto.getPriceB2B() > 0) {
+            item.setPriceB2B(new BigDecimal(dto.getPriceB2B()));
         }
+        if (dto.getPricePVP() != null && dto.getPricePVP() > 0) {
+            item.setPricePVP(new BigDecimal(dto.getPricePVP()));
+        }
+
+        BigDecimal extraCosts = item.getCostShipping().add(item.getCostCustoms());
+        item.setExtraCosts(extraCosts);
+        BigDecimal landedCost = item.getCostFob().add(extraCosts);
+        item.setLandedCost(landedCost);
+
+        item.setStatus("PREPARACION_ENVIO");
+        InventoryItem saved = inventoryItemRepository.save(item);
+        
+        log.info("✅ [PREPARACION_ENVIO] - {} | FOB: ${} + Envío: ${} + Aduana: ${} = Total: ${} | B2B: ${} / PVP: ${}", 
+            item.getInternalCode(), item.getCostFob(), item.getCostShipping(), item.getCostCustoms(), landedCost,
+            item.getPriceB2B(), item.getPricePVP());
+        return saved;
+    }
+
+    // =================== PASO 3: EN_TRANSITO ===================
+
+    @Transactional
+    public InventoryItem sendToTransit(SendToTransitDTO dto) {
+        log.info("✈️ [EN_TRANSITO] Enviando a tránsito - ID: {}", dto.getInventoryItemId());
+
+        InventoryItem item = inventoryItemRepository.findById(dto.getInventoryItemId())
+            .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado"));
+
+        transitionValidator.validateTransition(item.getStatus(), "EN_TRANSITO");
+
+        if (dto.getCostShippingFinal() != null) {
+            item.setCostShipping(new BigDecimal(dto.getCostShippingFinal()));
+        }
+        if (dto.getCostCustomsFinal() != null) {
+            item.setCostCustoms(new BigDecimal(dto.getCostCustomsFinal()));
+        }
+
+        BigDecimal extraCosts = item.getCostShipping().add(item.getCostCustoms());
+        item.setExtraCosts(extraCosts);
+        BigDecimal landedCost = item.getCostFob().add(extraCosts);
+        item.setLandedCost(landedCost);
+
+        item.setStatus("EN_TRANSITO");
+        item.setLogisticsStage("ENVIADO_AL_PAIS");
+
+        InventoryItem saved = inventoryItemRepository.save(item);
+        log.info("✅ [EN_TRANSITO] - {} | Tracking: {} | Costo Total: ${}", 
+            item.getInternalCode(), dto.getTrackingNumber(), landedCost);
+        return saved;
+    }
+
+    @Transactional
+    public InventoryItem updateLogisticsStage(UpdateLogisticsStageDTO dto) {
+        log.info("📍 [EN_TRANSITO] Actualizando etapa logística - ID: {}", dto.getInventoryItemId());
+
+        InventoryItem item = inventoryItemRepository.findById(dto.getInventoryItemId())
+            .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado"));
 
         if (!"EN_TRANSITO".equals(item.getStatus())) {
-            throw new IllegalArgumentException("El producto no está en estado EN_TRANSITO");
+            throw new IllegalArgumentException("Solo se puede actualizar etapa en EN_TRANSITO");
         }
 
-        // Validar que el serial number no esté duplicado
-        if (inventoryItemRepository.findBySerialNumber(dto.getSerialNumber()).isPresent()) {
-            throw new IllegalArgumentException("Este Serial Number ya existe en el sistema");
+        String validStages = "ENVIADO_AL_PAIS,EN_ADUANA,EN_CAMINO_AL_LOCAL";
+        if (!validStages.contains(dto.getLogisticsStage())) {
+            throw new IllegalArgumentException("Etapa logística inválida: " + dto.getLogisticsStage());
         }
 
-        // 💰 Matemática final: FOB + Aduana + Flete
-        BigDecimal totalExtraCosts = dto.getAduanaCost()
-            .add(dto.getFleteCourrierCost() != null ? dto.getFleteCourrierCost() : BigDecimal.ZERO);
-        BigDecimal landedCost = item.getCostFob().add(totalExtraCosts);
-
-        // Actualizar el registro
-        item.setSerialNumber(dto.getSerialNumber());     // 📌 Ahora asignamos el S/N
-        item.setExtraCosts(totalExtraCosts);
-        item.setLandedCost(landedCost);
-        item.setPriceB2B(dto.getPriceB2B());             // Precios sugeridos (se pueden ajustar)
-        item.setPricePVP(dto.getPricePVP());
-        item.setStatus("STOCK_EN_LOCAL");                // 🟠 En stock físico
-
+        item.setLogisticsStage(dto.getLogisticsStage());
+        
+        // AUTO-TRANSICION: Cuando llega a EN_CAMINO_AL_LOCAL, pasar automáticamente a STOCK_LOCAL
+        if ("EN_CAMINO_AL_LOCAL".equals(dto.getLogisticsStage())) {
+            item.setStatus("STOCK_LOCAL");
+            item.setLogisticsStage(null);  // Limpiar sub-estado al cambiar de estado
+            log.info("✅ [AUTO-TRANSICION] EN_TRANSITO → STOCK_LOCAL - Producto {} ahora en local", item.getInternalCode());
+        }
+        
         InventoryItem saved = inventoryItemRepository.save(item);
-        log.info("Importación liquidada - Código: {} - S/N: {} - Costo Real: {} - Estado: STOCK_EN_LOCAL", 
-                 item.getInternalCode(), dto.getSerialNumber(), landedCost);
+        log.info("✅ [EN_TRANSITO] Etapa actualizada - {} - Nueva etapa: {}", item.getInternalCode(), dto.getLogisticsStage());
         return saved;
     }
 
-    /**
-     * Paso 4 (INTERNACIONAL): Activar para Venta
-     * Confirmar/ajustar precios finales de venta
-     * Estado: STOCK_EN_LOCAL → DISPONIBLE
-     * 
-     * Resultado: El producto se activa en la web con stock
-     */
     @Transactional
-    public InventoryItem setAvailableForSale(Long inventoryItemId, BigDecimal priceB2B, BigDecimal pricePVP) {
-        log.info("Activando para venta - ID: {}", inventoryItemId);
+    public InventoryItem reserveProduct(ReserveProductDTO dto) {
+        log.info("🔒 [EN_TRANSITO/STOCK_LOCAL] Reservando producto - ID: {} - Cliente: {}", dto.getInventoryItemId(), dto.getCustomerName());
 
-        InventoryItem item = inventoryItemRepository.findById(inventoryItemId)
-            .orElseThrow(() -> new IllegalArgumentException("InventoryItem no encontrada"));
+        InventoryItem item = inventoryItemRepository.findById(dto.getInventoryItemId())
+            .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado"));
 
-        if (!"STOCK_EN_LOCAL".equals(item.getStatus())) {
-            throw new IllegalArgumentException("El producto debe estar en estado STOCK_EN_LOCAL");
+        if (!("EN_TRANSITO".equals(item.getStatus()) || "STOCK_LOCAL".equals(item.getStatus()))) {
+            throw new IllegalArgumentException("Solo se puede reservar en EN_TRANSITO o STOCK_LOCAL");
         }
 
-        if (priceB2B == null || pricePVP == null) {
-            throw new IllegalArgumentException("Debe especificar precios B2B y PVP");
+        if (item.getIsReserved() != null && item.getIsReserved()) {
+            throw new IllegalArgumentException("Este producto ya está reservado");
         }
 
-        item.setPriceB2B(priceB2B);
-        item.setPricePVP(pricePVP);
-        item.setStatus("DISPONIBLE");                    // 🟢 Ahora está disponible para venta
+        item.setIsReserved(true);
+        item.setReservedCustomer(dto.getCustomerName());
+        item.setReservedDate(LocalDateTime.now());
+        item.setReservedPrice(new BigDecimal(dto.getReservedPrice() != null ? dto.getReservedPrice() : 0));
+        item.setReservationAmount(new BigDecimal(dto.getReservationAmount() != null ? dto.getReservationAmount() : 0));
 
         InventoryItem saved = inventoryItemRepository.save(item);
-        log.info("Producto activado para venta - Código: {} - B2B: {} - PVP: {}", 
-                 item.getInternalCode(), priceB2B, pricePVP);
+        log.info("✅ RESERVADO - {} - Cliente: {} - Anticipo: ${}", item.getInternalCode(), dto.getCustomerName(), dto.getReservationAmount());
         return saved;
     }
 
-    /**
-     * Busca un producto por Serial Number
-     * Muestra: origen, proveedor, costo real final, cliente
-     */
+    // =================== PASO 4: STOCK_LOCAL ===================
+
+    @Transactional
+    public InventoryItem confirmLocalReceipt(ConfirmLocalReceiptDTO dto) {
+        log.info("📦 [STOCK_LOCAL] Confirmando recepción en local - ID: {}", dto.getInventoryItemId());
+
+        InventoryItem item = inventoryItemRepository.findById(dto.getInventoryItemId())
+            .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado"));
+
+        if (!"STOCK_LOCAL".equals(item.getStatus())) {
+            transitionValidator.validateTransition(item.getStatus(), "STOCK_LOCAL");
+        }
+
+        // Solo guardar serial number y product owner (datos de verificación, no precios)
+        if (dto.getSerialNumber() != null && !dto.getSerialNumber().isEmpty()) {
+            item.setSerialNumber(dto.getSerialNumber());
+        }
+
+        if (dto.getProductOwner() != null && !dto.getProductOwner().isEmpty()) {
+            item.setProductOwner(dto.getProductOwner());
+        }
+
+        // Los precios ya fueron ingresados en PREPARACION_ENVIO - NO se editan aquí
+        // Solo se verifica que existan
+        if (item.getPriceB2B() == null || item.getPriceB2B().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Precios no fueron ingresados en PREPARACION. Revisar preparación del envío");
+        }
+
+        // AUTO-TRANSICION: Confirmada la recepción, pasar automáticamente a DISPONIBLE
+        item.setStatus("DISPONIBLE");
+        InventoryItem saved = inventoryItemRepository.save(item);
+        log.info("✅ [AUTO-TRANSICION] STOCK_LOCAL → DISPONIBLE - {} - Serial: {} - B2B: ${} / PVP: ${} - Owner: {}", 
+            item.getInternalCode(), item.getSerialNumber(), item.getPriceB2B(), item.getPricePVP(), 
+            item.getProductOwner() != null ? item.getProductOwner() : "N/A");
+        return saved;
+    }
+
+    // =================== PASO 5: VENDIDO ===================
+
+    @Transactional
+    public InventoryItem finalSale(FinalSaleDTO dto) {
+        log.info("💰 [VENDIDO] Registrando venta final - ID: {} - Cliente: {}", dto.getInventoryItemId(), dto.getCustomerName());
+
+        InventoryItem item = inventoryItemRepository.findById(dto.getInventoryItemId())
+            .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado"));
+
+        transitionValidator.validateTransition(item.getStatus(), "VENDIDO");
+
+        if (dto.getSalePrice() == null || dto.getSalePrice() <= 0) {
+            throw new IllegalArgumentException("Precio de venta debe ser mayor a 0");
+        }
+
+        item.setStatus("VENDIDO");
+        item.setSoldToCustomer(dto.getCustomerName());
+        item.setSoldDate(LocalDateTime.now());
+        item.setSalePrice(new BigDecimal(dto.getSalePrice()));
+
+        BigDecimal profit = item.getSalePrice().subtract(item.getLandedCost());
+        item.setProfit(profit);
+
+        InventoryItem saved = inventoryItemRepository.save(item);
+        log.info("✅ [VENDIDO] - {} - Cliente: {} - Costo: ${} - Venta: ${} - UTILIDAD: ${}", 
+            item.getInternalCode(), dto.getCustomerName(), item.getLandedCost(), dto.getSalePrice(), profit);
+        return saved;
+    }
+
+    // =================== BÚSQUEDAS Y UTILIDADES ===================
+
     public Optional<InventoryItem> findBySerialNumber(String serialNumber) {
         return inventoryItemRepository.findBySerialNumber(serialNumber);
     }
 
-    /**
-     * Lista todos los productos COMPRADOS (esperando envío)
-     */
-    public List<InventoryItem> findPurchased() {
-        return inventoryItemRepository.findByStatus("COMPRADO");
+    public List<InventoryItem> findByStatus(String status) {
+        return inventoryItemRepository.findByStatus(status);
     }
 
-    /**
-     * Lista todos los productos EN_TRANSITO (en camino)
-     */
-    public List<InventoryItem> findInTransit() {
-        return inventoryItemRepository.findByStatus("EN_TRANSITO");
-    }
-
-    /**
-     * Lista todos los productos en STOCK_EN_LOCAL (esperando configuración de precios)
-     */
-    public List<InventoryItem> findInLocalStock() {
-        return inventoryItemRepository.findByStatus("STOCK_EN_LOCAL");
-    }
-
-    /**
-     * Lista todos los productos DISPONIBLES
-     */
-    public List<InventoryItem> findAvailable() {
-        return inventoryItemRepository.findByStatus("DISPONIBLE");
-    }
-
-    /**
-     * Lista inventario completo o por estado
-     */
     public List<InventoryItem> findAll(String status) {
         if (status == null || status.isBlank()) {
             return inventoryItemRepository.findAll();
@@ -250,74 +289,63 @@ public class InventoryService {
         return inventoryItemRepository.findByStatus(status);
     }
 
-    /**
-     * Edita datos del inventario (ficha tecnica/precios)
-     */
+    public List<InventoryItem> findPurchased() {
+        return inventoryItemRepository.findByStatus("COMPRADO");
+    }
+
+    public List<InventoryItem> findInPreparation() {
+        return inventoryItemRepository.findByStatus("PREPARACION_ENVIO");
+    }
+
+    public List<InventoryItem> findInTransit() {
+        return inventoryItemRepository.findByStatus("EN_TRANSITO");
+    }
+
+    public List<InventoryItem> findInLocalStock() {
+        return inventoryItemRepository.findByStatus("STOCK_LOCAL");
+    }
+
+    public List<InventoryItem> findSold() {
+        return inventoryItemRepository.findByStatus("VENDIDO");
+    }
+
+    // =================== PASO 4.5: DISPONIBLE (Antes de Vendido) ===================
+
+    public List<InventoryItem> findAvailable() {
+        return inventoryItemRepository.findByStatus("DISPONIBLE");
+    }
+
     @Transactional
-    public InventoryItem updateInventoryItem(Long inventoryItemId, InventoryUpdateDTO dto) {
+    public InventoryItem markAvailable(Long inventoryItemId) {
+        log.info("📦 [DISPONIBLE] Marcando producto como disponible - ID: {}", inventoryItemId);
+
         InventoryItem item = inventoryItemRepository.findById(inventoryItemId)
-                .orElseThrow(() -> new IllegalArgumentException("InventoryItem no encontrada"));
+            .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado"));
+
+        transitionValidator.validateTransition(item.getStatus(), "DISPONIBLE");
+        item.setStatus("DISPONIBLE");
+        InventoryItem saved = inventoryItemRepository.save(item);
+        
+        log.info("✅ [DISPONIBLE] - {} - Serial: {} - Disponible para venta", 
+            item.getInternalCode(), item.getSerialNumber());
+        return saved;
+    }
+
+    @Transactional
+    public void deleteItem(Long itemId) {
+        InventoryItem item = inventoryItemRepository.findById(itemId)
+            .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado"));
 
         if ("VENDIDO".equals(item.getStatus())) {
-            throw new IllegalArgumentException("No se puede editar un producto vendido");
+            throw new IllegalArgumentException("No se puede eliminar un producto que ya fue vendido");
         }
 
-        if (dto.getSerialNumber() != null && !dto.getSerialNumber().equals(item.getSerialNumber())) {
-            if (inventoryItemRepository.findBySerialNumber(dto.getSerialNumber()).isPresent()) {
-                throw new IllegalArgumentException("Este Serial Number ya existe en el sistema");
-            }
-            item.setSerialNumber(dto.getSerialNumber());
-        }
-
-        if (dto.getProductName() != null) {
-            item.setProductName(dto.getProductName());
-        }
-        if (dto.getBrand() != null) {
-            item.setBrand(dto.getBrand());
-        }
-        if (dto.getModel() != null) {
-            item.setModel(dto.getModel());
-        }
-        if (dto.getSpecs() != null) {
-            item.setSpecs(dto.getSpecs());
-        }
-        if (dto.getSupplier() != null) {
-            item.setSupplier(dto.getSupplier());
-        }
-        if (dto.getEstimatedPrice() != null) {
-            item.setEstimatedPrice(dto.getEstimatedPrice());
-        }
-        if (dto.getPriceB2B() != null) {
-            item.setPriceB2B(dto.getPriceB2B());
-        }
-        if (dto.getPricePVP() != null) {
-            item.setPricePVP(dto.getPricePVP());
-        }
-
-        return inventoryItemRepository.save(item);
+        inventoryItemRepository.delete(item);
+        log.info("🗑️ Producto eliminado - {} - Serial: {}", item.getInternalCode(), item.getSerialNumber());
     }
 
-    /**
-     * Marca un producto como VENDIDO
-     */
-    @Transactional
-    public InventoryItem markAsSold(Long inventoryItemId, String customerName) {
-        InventoryItem item = inventoryItemRepository.findById(inventoryItemId)
-            .orElseThrow(() -> new IllegalArgumentException("InventoryItem no encontrada"));
-
-        item.setStatus("VENDIDO");
-        item.setSoldToCustomer(customerName);
-        item.setSoldDate(LocalDateTime.now());
-
-        return inventoryItemRepository.save(item);
-    }
-
-    /**
-     * Genera un código interno único: FIX-XXXXX
-     */
     private String generateInternalCode() {
-        return "FIX-" + String.format("%05d", 
-            (int)(System.currentTimeMillis() % 100000)) + 
-            UUID.randomUUID().toString().substring(0, 5).toUpperCase();
+        return "FIX-" + String.format("%05d", (int)(System.currentTimeMillis() % 100000)) 
+            + UUID.randomUUID().toString().substring(0, 5).toUpperCase();
     }
 }

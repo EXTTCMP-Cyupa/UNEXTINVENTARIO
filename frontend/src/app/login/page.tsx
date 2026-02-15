@@ -21,7 +21,13 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      router.push('/catalog');
+      // Redirigir según el rol del usuario
+      const user = useAuthStore.getState().user;
+      if (user?.role === 'ADMIN') {
+        router.push('/admin');
+      } else {
+        router.push('/catalog');
+      }
     } catch (err) {
       setError('Email o contraseña incorrectos');
       console.error(err);

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Header from '@/components/Header';
+import { DashboardLayout } from '@/components/DashboardLayout';
+import { Card, CardHeader, CardContent } from '@/components/ui';
 import InventoryIngresoForm from '@/components/InventoryIngresoForm';
 import InventoryList from '@/components/InventoryList';
 import TransitManagementBoard from '@/components/TransitManagementBoard';
@@ -15,7 +16,7 @@ export default function AdminProductsPage() {
   const router = useRouter();
   const { user, token } = useAuthStore();
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabType>('ingreso');
+  const [activeTab, setActiveTab] = useState<TabType>('list');
 
   useEffect(() => {
     setMounted(true);
@@ -29,18 +30,17 @@ export default function AdminProductsPage() {
 
   if (!mounted || !user || user.role !== 'ADMIN') {
     return (
-      <>
-        <Header />
-        <main className="min-h-screen bg-gray-50 py-12 px-4">
-          <div className="max-w-1200 mx-auto">
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-              <p className="text-yellow-800">
-                Acceso denegado. Solo administradores pueden acceder a esta página.
-              </p>
-            </div>
-          </div>
-        </main>
-      </>
+      <DashboardLayout>
+        <div className="p-8">
+          <Card>
+            <CardContent className="py-12">
+              <div className="text-center text-yellow-800">
+                <p>Acceso denegado. Solo administradores pueden acceder a esta página.</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
     );
   }
 
@@ -52,72 +52,92 @@ export default function AdminProductsPage() {
   ];
 
   return (
-    <>
-      <Header />
-      <main className="min-h-screen bg-gray-50 py-12 px-4">
-        <div className="max-w-6xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">Gestión de Inventario</h1>
-            <p className="text-gray-600">
-              Administra productos, ingresos de mercadería y trazabilidad
-            </p>
-          </div>
+    <DashboardLayout>
+      <div className="p-8">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-gray-900 mb-1">Gestión de Inventario</h1>
+          <p className="text-gray-600">
+            Administra productos, ingresos de mercadería y trazabilidad
+          </p>
+        </div>
 
-          {/* Tabs */}
-          <div className="flex gap-2 mb-6 overflow-x-auto pb-2 border-b border-gray-200">
-            {tabs.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-3 whitespace-nowrap font-medium rounded-t-lg transition ${
+        {/* Tabs */}
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`
+                px-6 py-3 whitespace-nowrap font-medium rounded-lg transition-all duration-200
+                ${
                   activeTab === tab.id
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-                }`}
-              >
-                {tab.icon} {tab.label}
-              </button>
-            ))}
-          </div>
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+                }
+              `}
+            >
+              <span className="mr-2">{tab.icon}</span>
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-          {/* Tab Content */}
+        {/* Tab Content */}
+        <div className="mt-6">
           {activeTab === 'list' && <InventoryList />}
           {activeTab === 'ingreso' && <InventoryIngresoForm />}
           {activeTab === 'transit' && <TransitManagementBoard />}
           {activeTab === 'traceability' && <TraceabilitySearch />}
+        </div>
 
-          {/* Info Box */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mt-8">
-            <h3 className="text-lg font-semibold text-blue-900 mb-4">📚 Flujo de Trabajo:</h3>
-            <div className="text-blue-800 space-y-3">
-              <div className="flex gap-3">
-                <span className="font-bold text-blue-600">1.</span>
-                <p>
-                  <strong>Listado:</strong> Visualiza productos, edita datos y gestiona ventas
-                </p>
+        {/* Info Card */}
+        <Card className="mt-6" hover>
+          <CardHeader>
+            <h3 className="text-lg font-semibold text-gray-900">📚 Flujo de Trabajo</h3>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex gap-4">
+                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold flex-shrink-0">
+                  1
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">Listado</p>
+                  <p className="text-sm text-gray-600">Visualiza productos, edita datos y gestiona ventas</p>
+                </div>
               </div>
-              <div className="flex gap-3">
-                <span className="font-bold text-blue-600">2.</span>
-                <p>
-                  <strong>Ingreso de Mercadería:</strong> Registra la entrada (Local o Internacional)
-                </p>
+              <div className="flex gap-4">
+                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold flex-shrink-0">
+                  2
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">Ingreso de Mercadería</p>
+                  <p className="text-sm text-gray-600">Registra la entrada (Local o Internacional)</p>
+                </div>
               </div>
-              <div className="flex gap-3">
-                <span className="font-bold text-blue-600">3.</span>
-                <p>
-                  <strong>Liquidación (si es Internacional):</strong> Ingresa aduanas/flete y serial para marcar como disponible
-                </p>
+              <div className="flex gap-4">
+                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold flex-shrink-0">
+                  3
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">Liquidación</p>
+                  <p className="text-sm text-gray-600">Para internacionales: ingresa aduanas/flete y serial</p>
+                </div>
               </div>
-              <div className="flex gap-3">
-                <span className="font-bold text-blue-600">4.</span>
-                <p>
-                  <strong>Trazabilidad:</strong> Busca cualquier producto por Serial Number para ver su historial completo
-                </p>
+              <div className="flex gap-4">
+                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold flex-shrink-0">
+                  4
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">Trazabilidad</p>
+                  <p className="text-sm text-gray-600">Busca cualquier producto por Serial Number</p>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      </main>
-    </>
+          </CardContent>
+        </Card>
+      </div>
+    </DashboardLayout>
   );
 }

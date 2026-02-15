@@ -26,7 +26,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         try {
+            String authHeader = request.getHeader("Authorization");
             String jwt = getJwtFromRequest(request);
+            if (!StringUtils.hasText(jwt)) {
+                log.debug("JWT ausente para {} {} - Authorization header: {}", request.getMethod(), request.getRequestURI(), authHeader);
+            }
 
             if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
                 String email = tokenProvider.getEmailFromToken(jwt);
@@ -40,7 +44,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
 
-                log.debug("JWT validado para usuario: {}", email);
+                log.debug("JWT validado para usuario: {} - role: {} - {} {}", email, role, request.getMethod(), request.getRequestURI());
+            } else if (StringUtils.hasText(jwt)) {
+                log.debug("JWT inválido para {} {}", request.getMethod(), request.getRequestURI());
             }
         } catch (Exception e) {
             log.error("Error al validar JWT: {}", e.getMessage());
