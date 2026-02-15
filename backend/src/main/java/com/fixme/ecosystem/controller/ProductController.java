@@ -14,6 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -86,7 +87,7 @@ public class ProductController {
 
     /**
      * Registrar ingreso de producto INTERNACIONAL
-     * Estado inicial: EN_TRANSITO
+     * Estado inicial: COMPRADO
      */
     @PostMapping("/inventory/ingreso/international")
     @PreAuthorize("hasRole('ADMIN')")
@@ -111,8 +112,20 @@ public class ProductController {
     }
 
     /**
-     * Liquidar importación (pagar aduanas/flete)
-     * Cambia estado de EN_TRANSITO a DISPONIBLE
+     * Marcar como "En Tránsito"
+     * Cambia estado de COMPRADO a EN_TRANSITO
+     */
+    @PostMapping("/inventory/move-to-transit/{inventoryItemId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<InventoryItem> moveToTransit(@PathVariable Long inventoryItemId) {
+        log.info("Moviendo a EN_TRANSITO - ID: {}", inventoryItemId);
+        InventoryItem item = inventoryService.moveToTransit(inventoryItemId);
+        return ResponseEntity.ok(item);
+    }
+
+    /**
+     * Liquidar importación (pagar aduanas/flete, asignar serial)
+     * Cambia estado de EN_TRANSITO a STOCK_EN_LOCAL
      */
     @PostMapping("/inventory/liquidate")
     @PreAuthorize("hasRole('ADMIN')")
@@ -124,13 +137,50 @@ public class ProductController {
     }
 
     /**
-     * Listar todos los productos en tránsito esperando liquidación
+     * Activar para venta (configurar precios finales)
+     * Cambia estado de STOCK_EN_LOCAL a DISPONIBLE
+     */
+    @PostMapping("/inventory/activate-sale/{inventoryItemId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<InventoryItem> activateForSale(
+            @PathVariable Long inventoryItemId,
+            @RequestParam BigDecimal priceB2B,
+            @RequestParam BigDecimal pricePVP) {
+        log.info("Activando para venta - ID: {} - B2B: {} - PVP: {}", inventoryItemId, priceB2B, pricePVP);
+        InventoryItem item = inventoryService.setAvailableForSale(inventoryItemId, priceB2B, pricePVP);
+        return ResponseEntity.ok(item);
+    }
+
+    /**
+     * Listar todos los productos COMPRADOS (esperando envío)
+     */
+    @GetMapping("/inventory/purchased")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<InventoryItem>> getPurchased() {
+        log.info("Obteniendo productos comprados");
+        List<InventoryItem> items = inventoryService.findPurchased();
+        return ResponseEntity.ok(items);
+    }
+
+    /**
+     * Listar todos los productos EN_TRANSITO (en camino)
      */
     @GetMapping("/inventory/transit")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<InventoryItem>> getInTransit() {
         log.info("Obteniendo productos en tránsito");
         List<InventoryItem> items = inventoryService.findInTransit();
+        return ResponseEntity.ok(items);
+    }
+
+    /**
+     * Listar todos los productos en STOCK_EN_LOCAL (esperando precios)
+     */
+    @GetMapping("/inventory/local-stock")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<InventoryItem>> getLocalStock() {
+        log.info("Obteniendo productos en stock local");
+        List<InventoryItem> items = inventoryService.findInLocalStock();
         return ResponseEntity.ok(items);
     }
 

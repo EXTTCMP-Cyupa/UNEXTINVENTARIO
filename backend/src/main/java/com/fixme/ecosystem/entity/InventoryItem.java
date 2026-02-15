@@ -52,7 +52,7 @@ public class InventoryItem {
     // ESTADO Y TIPO
     @Column(nullable = false)
     @Builder.Default
-    private String status = "DISPONIBLE"; // EN_TRANSITO, DISPONIBLE, VENDIDO, DEFECTUOSO
+    private String status = "DISPONIBLE"; // COMPRADO, EN_TRANSITO, STOCK_EN_LOCAL, DISPONIBLE, RESERVADO, VENDIDO, DEFECTUOSO
 
     @Column(nullable = false)
     @Builder.Default

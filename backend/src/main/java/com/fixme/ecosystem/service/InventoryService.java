@@ -29,11 +29,11 @@ public class InventoryService {
 
     /**
      * Paso 1: Crear un registro de compra INTERNACIONAL
-     * Estado: EN_TRANSITO
-     * Sin Serial Number aún (llegará en liquidación)
+     * Estado: COMPRADO
+     * Sin Serial Number aún (llegará después)
      * Sin ProductVariant aún (se asignará después)
      * 
-     * Resultado: El producto aparece "Llega pronto" en la web
+     * Resultado: Orden confirmada, esperando envío
      */
     @Transactional
     public InventoryItem registerInternationalPurchase(InternationalInventoryIngresoDTO dto) {
@@ -49,7 +49,7 @@ public class InventoryService {
             .specs(dto.getSpecs())
             .internalCode(internalCode)
             .purchaseType("INTERNATIONAL")
-            .status("EN_TRANSITO")                   // 🔴 EN TRÁNSITO
+            .status("COMPRADO")                      // 🟡 COMPRADO (orden confirmada)
             .costFob(dto.getCostFob())
             .estimatedPrice(dto.getEstimatedPrice()) // Precio tentativo para la web
             .supplier(dto.getSupplier())
@@ -58,7 +58,7 @@ public class InventoryService {
             .build();
 
         InventoryItem saved = inventoryItemRepository.save(item);
-        log.info("Compra internacional creada - Código: {} - Estado: EN_TRANSITO", internalCode);
+        log.info("Compra internacional creada - Código: {} - Estado: COMPRADO", internalCode);
         return saved;
     }
 
@@ -105,12 +105,33 @@ public class InventoryService {
     }
 
     /**
-     * Paso 3 (INTERNACIONAL): "Recibir Mercadería"
-     * El paquete llegó, pagas aduana/flete, asignas Serial Number
+     * Paso 2 (INTERNACIONAL): Marcar como "En Tránsito"
+     * Estado: COMPRADO → EN_TRANSITO
+     */
+    @Transactional
+    public InventoryItem moveToTransit(Long inventoryItemId) {
+        log.info("Moviendo a EN_TRANSITO - ID: {}", inventoryItemId);
+
+        InventoryItem item = inventoryItemRepository.findById(inventoryItemId)
+            .orElseThrow(() -> new IllegalArgumentException("InventoryItem no encontrada"));
+
+        if (!"COMPRADO".equals(item.getStatus())) {
+            throw new IllegalArgumentException("El producto debe estar en estado COMPRADO");
+        }
+
+        item.setStatus("EN_TRANSITO");                   // 🔵 EN TRÁNSITO
+        InventoryItem saved = inventoryItemRepository.save(item);
+        log.info("Producto movido a EN_TRANSITO - Código: {}", item.getInternalCode());
+        return saved;
+    }
+
+    /**
+     * Paso 3 (INTERNACIONAL): "Llegó al Local"
+     * El paquete llegó físicamente, pagas aduana/flete, asignas Serial Number
      * Matemática: FOB + Aduana + Flete = Costo Real Final
-     * Estado: EN_TRANSITO → DISPONIBLE
+     * Estado: EN_TRANSITO → STOCK_EN_LOCAL
      * 
-     * Resultado: El producto se activa en la web con stock
+     * Resultado: Producto físicamente en el local, esperando configuración de precios
      */
     @Transactional
     public InventoryItem liquidateImport(LiquidateImportDTO dto) {
@@ -141,13 +162,45 @@ public class InventoryService {
         item.setSerialNumber(dto.getSerialNumber());     // 📌 Ahora asignamos el S/N
         item.setExtraCosts(totalExtraCosts);
         item.setLandedCost(landedCost);
-        item.setPriceB2B(dto.getPriceB2B());             // Precios finales
+        item.setPriceB2B(dto.getPriceB2B());             // Precios sugeridos (se pueden ajustar)
         item.setPricePVP(dto.getPricePVP());
-        item.setStatus("DISPONIBLE");                    // 🟢 Ahora está disponible
+        item.setStatus("STOCK_EN_LOCAL");                // 🟠 En stock físico
 
         InventoryItem saved = inventoryItemRepository.save(item);
-        log.info("Importación liquidada - Código: {} - S/N: {} - Costo Real: {}", 
+        log.info("Importación liquidada - Código: {} - S/N: {} - Costo Real: {} - Estado: STOCK_EN_LOCAL", 
                  item.getInternalCode(), dto.getSerialNumber(), landedCost);
+        return saved;
+    }
+
+    /**
+     * Paso 4 (INTERNACIONAL): Activar para Venta
+     * Confirmar/ajustar precios finales de venta
+     * Estado: STOCK_EN_LOCAL → DISPONIBLE
+     * 
+     * Resultado: El producto se activa en la web con stock
+     */
+    @Transactional
+    public InventoryItem setAvailableForSale(Long inventoryItemId, BigDecimal priceB2B, BigDecimal pricePVP) {
+        log.info("Activando para venta - ID: {}", inventoryItemId);
+
+        InventoryItem item = inventoryItemRepository.findById(inventoryItemId)
+            .orElseThrow(() -> new IllegalArgumentException("InventoryItem no encontrada"));
+
+        if (!"STOCK_EN_LOCAL".equals(item.getStatus())) {
+            throw new IllegalArgumentException("El producto debe estar en estado STOCK_EN_LOCAL");
+        }
+
+        if (priceB2B == null || pricePVP == null) {
+            throw new IllegalArgumentException("Debe especificar precios B2B y PVP");
+        }
+
+        item.setPriceB2B(priceB2B);
+        item.setPricePVP(pricePVP);
+        item.setStatus("DISPONIBLE");                    // 🟢 Ahora está disponible para venta
+
+        InventoryItem saved = inventoryItemRepository.save(item);
+        log.info("Producto activado para venta - Código: {} - B2B: {} - PVP: {}", 
+                 item.getInternalCode(), priceB2B, pricePVP);
         return saved;
     }
 
@@ -160,10 +213,24 @@ public class InventoryService {
     }
 
     /**
-     * Lista todos los productos EN_TRANSITO (esperando liquidación)
+     * Lista todos los productos COMPRADOS (esperando envío)
+     */
+    public List<InventoryItem> findPurchased() {
+        return inventoryItemRepository.findByStatus("COMPRADO");
+    }
+
+    /**
+     * Lista todos los productos EN_TRANSITO (en camino)
      */
     public List<InventoryItem> findInTransit() {
         return inventoryItemRepository.findByStatus("EN_TRANSITO");
+    }
+
+    /**
+     * Lista todos los productos en STOCK_EN_LOCAL (esperando configuración de precios)
+     */
+    public List<InventoryItem> findInLocalStock() {
+        return inventoryItemRepository.findByStatus("STOCK_EN_LOCAL");
     }
 
     /**
