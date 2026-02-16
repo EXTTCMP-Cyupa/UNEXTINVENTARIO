@@ -5,6 +5,7 @@ import com.fixme.ecosystem.repository.WarrantyRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,12 +21,19 @@ public class WarrantyAdminController {
     private WarrantyRepository warrantyRepository;
 
     @GetMapping("/list")
-    public ResponseEntity<List<WarrantyAdminDTO>> listAllWarranties() {
-        List<Warranty> warranties = warrantyRepository.findAll();
-        List<WarrantyAdminDTO> result = warranties.stream()
-            .map(WarrantyAdminDTO::fromEntity)
-            .collect(Collectors.toList());
-        return ResponseEntity.ok(result);
+    @Transactional(readOnly = true)
+    public ResponseEntity<?> listAllWarranties() {
+        try {
+            List<Warranty> warranties = warrantyRepository.findAll();
+            List<WarrantyAdminDTO> result = warranties.stream()
+                .map(WarrantyAdminDTO::fromEntity)
+                .collect(Collectors.toList());
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error listando garantias: ", e);
+            return ResponseEntity.status(500)
+                .body("Error: " + e.getMessage());
+        }
     }
 
     /**
