@@ -1,5 +1,5 @@
 import apiClient from '@/lib/apiClient';
-import { ProductVariant, WarrantyHistory, Product, CreateProductDTO, CreateProductVariantDTO, AdminWarrantyRecord } from '@/types';
+import { ProductVariant, WarrantyHistory, Product, CreateProductDTO, CreateProductVariantDTO, AdminWarrantyRecord, SalesReportDTO, SalesSummaryDTO, InventoryReportDTO } from '@/types';
 
 // Exportar apiClient como 'api' para compatibilidad
 export const api = apiClient;
@@ -46,5 +46,40 @@ export const warrantyService = {
   getAdminWarranties: async (): Promise<AdminWarrantyRecord[]> => {
     const response = await apiClient.get('/admin/warranty/list');
     return response.data || [];
+  },
+};
+export const reportService = {
+  getSalesSummary: async (): Promise<SalesSummaryDTO> => {
+    const response = await apiClient.get('/admin/reports/sales/summary');
+    return response.data;
+  },
+
+  getSalesReport: async (customerName?: string, paymentMethod?: string, warrantyType?: string): Promise<SalesReportDTO[]> => {
+    const params = new URLSearchParams();
+    if (customerName) params.append('customerName', customerName);
+    if (paymentMethod) params.append('paymentMethod', paymentMethod);
+    if (warrantyType) params.append('warrantyType', warrantyType);
+    
+    const response = await apiClient.get(`/admin/reports/sales/list?${params.toString()}`);
+    return response.data || [];
+  },
+
+  getInventorySummary: async (): Promise<InventoryReportDTO> => {
+    const response = await apiClient.get('/admin/reports/inventory/summary');
+    return response.data;
+  },
+
+  getSalesByDateRange: async (startDate?: string, endDate?: string): Promise<SalesReportDTO[]> => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    
+    const response = await apiClient.get(`/admin/reports/sales/by-date?${params.toString()}`);
+    return response.data || [];
+  },
+
+  getPaymentMethodsDistribution: async (): Promise<Record<string, number>> => {
+    const response = await apiClient.get('/admin/reports/sales/payment-methods');
+    return response.data || {};
   },
 };

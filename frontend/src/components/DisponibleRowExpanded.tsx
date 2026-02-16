@@ -64,6 +64,7 @@ export default function DisponibleRowExpanded({
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successData, setSuccessData] = useState<{ warrantyCode: string; warrantyType: string } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,9 +90,9 @@ export default function DisponibleRowExpanded({
       });
 
       if (response.status === 200) {
-        alert('💰 ¡Venta registrada exitosamente!');
-        onSuccess();
-        onClose();
+        const warrantyCode = response.data?.warrantyCode || '';
+        const warrantyType = response.data?.warrantyType || '6_MESES';
+        setSuccessData({ warrantyCode, warrantyType });
       }
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Error al registrar venta');
@@ -100,8 +101,136 @@ export default function DisponibleRowExpanded({
     }
   };
 
+  const handleCompleteSuccess = () => {
+    onSuccess();
+    onClose();
+  };
+
   const margin = parseFloat(form.salePrice) - landedCost || 0;
   const marginPercent = landedCost > 0 && form.salePrice ? ((margin / landedCost) * 100).toFixed(1) : '0';
+
+  // Si hay datos de éxito, mostrar el certificado
+  if (successData) {
+    const warrantyCode = successData.warrantyCode;
+    const warrantyUrl = typeof window !== 'undefined' && warrantyCode
+      ? `${window.location.origin}/warranty/${warrantyCode}`
+      : '';
+    return (
+      <div className="bg-green-50 border-t-2 border-green-500 px-5 py-6 space-y-6">
+        {/* Encabezado de éxito */}
+        <div className="text-center">
+          <div className="text-6xl mb-4">✅</div>
+          <h3 className="text-2xl font-bold text-green-900 mb-2">¡Venta Registrada Exitosamente!</h3>
+          <p className="text-green-700">El certificado de garantía ha sido generado para el cliente.</p>
+        </div>
+
+        {/* Detalles de la venta */}
+        <div className="bg-white rounded-lg border border-green-200 p-4 space-y-3">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs text-gray-600 font-semibold uppercase">Cliente</p>
+              <p className="text-sm font-bold text-gray-900">{form.customerName}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 font-semibold uppercase">Monto de Venta</p>
+              <p className="text-sm font-bold text-green-600">${parseFloat(form.salePrice).toFixed(2)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 font-semibold uppercase">Producto</p>
+              <p className="text-sm font-semibold text-gray-900">{productName}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600 font-semibold uppercase">Código Interno</p>
+              <p className="text-sm font-mono font-bold text-blue-600">{internalCode}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Certificado de Garantía */}
+        <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border-2 border-blue-300 p-6 space-y-4">
+          <div className="text-center">
+            <h4 className="text-lg font-bold text-blue-900 mb-2">🛡️ CERTIFICADO DE GARANTÍA</h4>
+            <p className="text-sm text-blue-700">FiXME - Tecnología de Confianza</p>
+          </div>
+
+          <div className="bg-white rounded-lg p-4 border border-blue-200 space-y-3">
+            <div>
+              <p className="text-xs text-gray-600 font-semibold uppercase mb-1">Código de Garantía</p>
+              <p className="text-sm font-mono font-bold text-blue-600 break-all">
+                {warrantyCode || 'NO DISPONIBLE'}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs text-gray-600 font-semibold uppercase mb-2">Para acceder al certificado, haz clic en el botón de abajo o comparte este enlace con el cliente:</p>
+              <div className="bg-gray-50 p-3 rounded border border-gray-200 break-all">
+                <p className="text-xs font-mono text-gray-700">
+                  {warrantyUrl || 'Consulte con el administrador para obtener el enlace.'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {warrantyUrl && (
+              <a
+                href={`/warranty/${warrantyCode}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full text-center px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+              >
+                🔗 Ver Certificado de Garantía
+              </a>
+            )}
+            {!warrantyUrl && (
+              <div className="w-full text-center px-4 py-3 bg-yellow-100 text-yellow-800 font-semibold rounded-lg border border-yellow-300">
+                El código de garantía se asignará pronto. Consulte con el administrador.
+              </div>
+            )}
+          </div>
+
+          <p className="text-xs text-center text-gray-600 bg-blue-50 p-3 rounded">
+            💡 Proporcione este código de garantía al cliente. Lo necesitará para hacer reclamaciones o consultas sobre la garantía.
+          </p>
+        </div>
+
+        {/* Instrucciones */}
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <p className="text-sm font-semibold text-amber-900 mb-2">📋 Próximos Pasos:</p>
+          <ul className="text-sm text-amber-800 space-y-1 list-disc list-inside">
+            <li>Entregar el certificado impreso al cliente</li>
+            <li>O enviar el enlace del certificado por email</li>
+            <li>El cliente puede guardar o imprimir el certificado en cualquier momento</li>
+          </ul>
+        </div>
+
+        {/* Botones */}
+        <div className="flex gap-3 pt-4">
+          <button
+            type="button"
+            onClick={() => {
+              if (!warrantyCode || !navigator.clipboard) {
+                alert('No se pudo copiar el código.');
+                return;
+              }
+              navigator.clipboard.writeText(warrantyCode);
+              alert('Codigo copiado al portapapeles');
+            }}
+            className="flex-1 px-4 py-2.5 border-2 border-blue-600 bg-white hover:bg-blue-50 text-blue-600 font-semibold rounded-lg transition-colors"
+          >
+            📋 Copiar Código
+          </button>
+          <button
+            type="button"
+            onClick={handleCompleteSuccess}
+            className="flex-1 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors"
+          >
+            ✅ Completar
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-teal-50 border-t-2 border-teal-200 px-5 py-6 space-y-6">

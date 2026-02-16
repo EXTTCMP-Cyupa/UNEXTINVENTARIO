@@ -237,6 +237,41 @@ export default function PublicWarrantyPage() {
                 </CardContent>
               </Card>
 
+              {/* Warranty Terms */}
+              <Card className="shadow-xl">
+                <CardHeader className="bg-gradient-to-r from-slate-700 to-slate-800 text-white">
+                  <h2 className="text-2xl font-bold">📜 Términos de la Garantía</h2>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <div className="space-y-3 text-gray-800">
+                    <p>
+                      <strong>Cobertura:</strong> Problemas técnicos relacionados con el funcionamiento interno del hardware
+                      (Placa base y procesador).
+                    </p>
+                    <p>
+                      <strong>Exclusiones (No cubierto):</strong> Teclado, Pantalla y Batería, ya que son componentes sujetos a
+                      desgaste físico y manipulación directa por el usuario.
+                    </p>
+                    <p>
+                      <strong>Daños:</strong> Daños por golpes, humedad, variaciones de voltaje o apertura del equipo por personal ajeno.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Sales Policy */}
+              <Card className="shadow-xl">
+                <CardHeader className="bg-gradient-to-r from-amber-700 to-amber-800 text-white">
+                  <h2 className="text-2xl font-bold">🧾 Política de Venta</h2>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <p className="text-gray-800">
+                    <strong>Cambios o Devoluciones:</strong> Bajo nuestra política comercial, no se aceptan cambios ni devoluciones
+                    de dinero una vez concretada la compra y retirado el producto del local.
+                  </p>
+                </CardContent>
+              </Card>
+
               {/* Help Card */}
               <Card className="shadow-xl border-2 border-blue-200 bg-blue-50">
                 <CardContent className="p-6">

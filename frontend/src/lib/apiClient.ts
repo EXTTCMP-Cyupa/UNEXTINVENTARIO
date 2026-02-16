@@ -22,4 +22,14 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+// Interceptor de error para manejar errores de autenticación
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // El error será manejado por la aplicación, no aquí
+    // Para evitar loops infinitos de actualización de auth state
+    return Promise.reject(error);
+  }
+);
+
 export default apiClient;

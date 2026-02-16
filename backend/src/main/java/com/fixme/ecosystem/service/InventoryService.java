@@ -285,7 +285,7 @@ public class InventoryService {
     // =================== PASO 5: VENDIDO ===================
 
     @Transactional
-    public InventoryItem finalSale(FinalSaleDTO dto) {
+    public FinalSaleResponseDTO finalSale(FinalSaleDTO dto) {
         log.info("💰 [VENDIDO] Registrando venta final - ID: {} - Cliente: {}", dto.getInventoryItemId(), dto.getCustomerName());
 
         InventoryItem item = inventoryItemRepository.findById(dto.getInventoryItemId())
@@ -293,22 +293,74 @@ public class InventoryService {
 
         transitionValidator.validateTransition(item.getStatus(), "VENDIDO");
 
+        String statusAtSale = item.getStatus();
+
         if (dto.getSalePrice() == null || dto.getSalePrice() <= 0) {
             throw new IllegalArgumentException("Precio de venta debe ser mayor a 0");
         }
 
+        BigDecimal salePrice = new BigDecimal(dto.getSalePrice());
+        BigDecimal landedCost = item.getLandedCost() != null ? item.getLandedCost() : BigDecimal.ZERO;
+        BigDecimal profit = salePrice.subtract(landedCost);
+
+        Sale sale = saleRepository.findByInventoryItemId(item.getId()).orElseGet(() -> {
+            Sale newSale = Sale.builder()
+                    .inventoryItem(item)
+                    .customerName(dto.getCustomerName())
+                    .customerEmail(dto.getCustomerEmail())
+                    .customerPhone(null)
+                    .customerAddress(null)
+                    .saleDate(LocalDateTime.now())
+                    .salePrice(salePrice)
+                    .paymentMethod(dto.getPaymentMethod() != null && !dto.getPaymentMethod().isBlank()
+                            ? dto.getPaymentMethod()
+                            : "EFECTIVO")
+                    .notes(dto.getNotes())
+                    .saleType("NORMAL")
+                    .statusAtSale(statusAtSale)
+                    .profit(profit)
+                    .build();
+            return saleRepository.save(newSale);
+        });
+
+        Warranty warranty = warrantyRepository.findByInventoryItemId(item.getId()).orElseGet(() -> {
+            Warranty newWarranty = Warranty.builder()
+                    .inventoryItem(item)
+                    .customerName(dto.getCustomerName())
+                    .customerEmail(dto.getCustomerEmail())
+                    .customerPhone(null)
+                    .warrantyCode(UUID.randomUUID().toString())
+                    .qrToken(UUID.randomUUID().toString())
+                    .warrantyType("6_MESES")
+                    .warrantyStartDate(LocalDateTime.now())
+                    .saleType("NORMAL")
+                    .notes(null)
+                    .startDate(LocalDateTime.now())
+                    .status("ACTIVA")
+                    .build();
+            newWarranty.calculateWarrantyEndDate();
+            return warrantyRepository.save(newWarranty);
+        });
+
         item.setStatus("VENDIDO");
         item.setSoldToCustomer(dto.getCustomerName());
         item.setSoldDate(LocalDateTime.now());
-        item.setSalePrice(new BigDecimal(dto.getSalePrice()));
-
-        BigDecimal profit = item.getSalePrice().subtract(item.getLandedCost());
+        item.setSalePrice(salePrice);
         item.setProfit(profit);
 
-        InventoryItem saved = inventoryItemRepository.save(item);
+        inventoryItemRepository.save(item);
         log.info("✅ [VENDIDO] - {} - Cliente: {} - Costo: ${} - Venta: ${} - UTILIDAD: ${}", 
-            item.getInternalCode(), dto.getCustomerName(), item.getLandedCost(), dto.getSalePrice(), profit);
-        return saved;
+            item.getInternalCode(), dto.getCustomerName(), landedCost, dto.getSalePrice(), profit);
+
+        return FinalSaleResponseDTO.builder()
+                .inventoryItemId(item.getId())
+                .saleId(sale.getId())
+                .customerName(dto.getCustomerName())
+                .salePrice(salePrice)
+                .saleDate(sale.getSaleDate())
+                .warrantyCode(warranty.getWarrantyCode())
+                .warrantyType(warranty.getWarrantyType())
+                .build();
     }
 
     // =================== BÚSQUEDAS Y UTILIDADES ===================

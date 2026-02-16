@@ -150,7 +150,7 @@ public class ProductController {
 
     @PostMapping("/inventory/final-sale/{inventoryItemId}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<InventoryItem> finalSale(
+    public ResponseEntity<FinalSaleResponseDTO> finalSale(
             @PathVariable Long inventoryItemId,
             @Valid @RequestBody FinalSaleDTO dto) {
         log.info("💰 Registrando venta final - ID: {}", inventoryItemId);

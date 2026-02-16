@@ -191,7 +191,7 @@ export default function AdminWarrantiesPage() {
                       <th className="py-3 pr-3">Garantia</th>
                       <th className="py-3 pr-3">Fechas</th>
                       <th className="py-3 pr-3">Estado</th>
-                      <th className="py-3">Codigo</th>
+                      <th className="py-3">Link</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -226,9 +226,32 @@ export default function AdminWarrantiesPage() {
                           </Badge>
                         </td>
                         <td className="py-3">
-                          <div className="text-xs font-mono text-gray-700 break-all">
-                            {w.warrantyCode || '-'}
-                          </div>
+                          {w.warrantyCode ? (
+                            <div className="space-y-1">
+                              <a
+                                href={`/warranty/${w.warrantyCode}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex text-xs text-blue-600 hover:underline"
+                              >
+                                /warranty/{w.warrantyCode}
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const link = `${window.location.origin}/warranty/${w.warrantyCode}`;
+                                  if (navigator.clipboard) {
+                                    navigator.clipboard.writeText(link);
+                                  }
+                                }}
+                                className="block text-xs text-gray-600 hover:text-gray-900"
+                              >
+                                Copiar link
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-400">-</span>
+                          )}
                         </td>
                       </tr>
                     ))}

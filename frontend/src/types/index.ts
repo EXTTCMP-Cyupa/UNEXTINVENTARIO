@@ -139,3 +139,52 @@ export interface LoginResponse {
   email: string;
   role: string;
 }
+export interface SalesReportDTO {
+  saleId: number;
+  customerName: string;
+  customerEmail: string;
+  productName: string;
+  internalCode: string;
+  salePrice: number;
+  paymentMethod: string;
+  warrantyType: string;
+  saleDate: string;
+  status: string;
+}
+
+export interface SalesSummaryDTO {
+  totalSales: number;
+  totalRevenue: number;
+  averageSalePrice: number;
+  topPaymentMethod: string;
+  topWarrantyType: string;
+  warrantiesCreated: number;
+}
+
+export interface InventoryReportDTO {
+  totalProducts: number;
+  productsAvailable: number;
+  productsInTransit: number;
+  lowStockCount: number;
+  averageDaysInStock: number;
+  totalInventoryValue: number;
+}
+
+export interface PublicWarrantyDTO {
+  productName: string;
+  brand?: string;
+  model?: string;
+  serialNumber?: string;
+  internalCode?: string;
+  customerName?: string;
+  customerEmail?: string;
+  warrantyCode?: string;
+  warrantyType: string;
+  status: string;
+  warrantyStartDate?: string;
+  warrantyEndDate?: string;
+  saleType?: string;
+  saleDate?: string;
+  salePrice?: number;
+  message?: string;
+}
