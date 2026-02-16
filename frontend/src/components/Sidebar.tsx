@@ -17,7 +17,7 @@ const navItems: NavItem[] = [
   { label: 'Inventario', href: '/admin/inventory', icon: '📋' },
   { label: 'Ventas', href: '/admin/sales', icon: '💰' },
   { label: 'Ventas Anticipadas', href: '/admin/anticipated-sales', icon: '🚀' },
-  { label: 'Garantías', href: '/warranty', icon: '🔒' },
+  { label: 'Garantías', href: '/admin/warranties', icon: '🔒' },
   { label: 'Clientes', href: '/admin/customers', icon: '👥' },
   { label: 'Reportes', href: '/admin/reports', icon: '📈' },
 ];

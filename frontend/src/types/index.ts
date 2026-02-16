@@ -103,6 +103,29 @@ export interface WarrantyHistory {
   status: string;
 }
 
+export interface AdminWarrantyRecord {
+  id: number;
+  warrantyCode?: string;
+  qrToken?: string;
+  warrantyType?: string;
+  status?: string;
+  saleType?: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  startDate?: string;
+  warrantyStartDate?: string;
+  warrantyEndDate?: string;
+  inventoryItemId?: number;
+  serialNumber?: string;
+  internalCode?: string;
+  productName?: string;
+  brand?: string;
+  model?: string;
+  salePrice?: number;
+  soldDate?: string;
+}
+
 export interface User {
   id: number;
   email: string;

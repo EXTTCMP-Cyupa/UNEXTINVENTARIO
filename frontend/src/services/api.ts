@@ -1,5 +1,5 @@
 import apiClient from '@/lib/apiClient';
-import { ProductVariant, WarrantyHistory, Product, CreateProductDTO, CreateProductVariantDTO } from '@/types';
+import { ProductVariant, WarrantyHistory, Product, CreateProductDTO, CreateProductVariantDTO, AdminWarrantyRecord } from '@/types';
 
 // Exportar apiClient como 'api' para compatibilidad
 export const api = apiClient;
@@ -42,5 +42,9 @@ export const warrantyService = {
   getWarrantyHistory: async (serialNumber: string): Promise<WarrantyHistory> => {
     const response = await apiClient.get(`/warranty/${serialNumber}`);
     return response.data;
+  },
+  getAdminWarranties: async (): Promise<AdminWarrantyRecord[]> => {
+    const response = await apiClient.get('/admin/warranty/list');
+    return response.data || [];
   },
 };

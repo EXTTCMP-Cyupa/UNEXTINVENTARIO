@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/admin/warranty")
@@ -17,6 +18,15 @@ public class WarrantyAdminController {
 
     @Autowired
     private WarrantyRepository warrantyRepository;
+
+    @GetMapping("/list")
+    public ResponseEntity<List<WarrantyAdminDTO>> listAllWarranties() {
+        List<Warranty> warranties = warrantyRepository.findAll();
+        List<WarrantyAdminDTO> result = warranties.stream()
+            .map(WarrantyAdminDTO::fromEntity)
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(result);
+    }
 
     /**
      * Endpoint temporal para actualizar valores NULL en warranty_code y warranty_type
@@ -97,6 +107,58 @@ public class WarrantyAdminController {
             log.error("Error contando NULLs: ", e);
             return ResponseEntity.status(500)
                 .body("Error: " + e.getMessage());
+        }
+    }
+
+    public static class WarrantyAdminDTO {
+        public Long id;
+        public String warrantyCode;
+        public String qrToken;
+        public String warrantyType;
+        public String status;
+        public String saleType;
+        public String customerName;
+        public String customerEmail;
+        public String customerPhone;
+        public java.time.LocalDateTime startDate;
+        public java.time.LocalDateTime warrantyStartDate;
+        public java.time.LocalDateTime warrantyEndDate;
+        public Long inventoryItemId;
+        public String serialNumber;
+        public String internalCode;
+        public String productName;
+        public String brand;
+        public String model;
+        public java.math.BigDecimal salePrice;
+        public java.time.LocalDateTime soldDate;
+
+        public static WarrantyAdminDTO fromEntity(Warranty warranty) {
+            WarrantyAdminDTO dto = new WarrantyAdminDTO();
+            dto.id = warranty.getId();
+            dto.warrantyCode = warranty.getWarrantyCode();
+            dto.qrToken = warranty.getQrToken();
+            dto.warrantyType = warranty.getWarrantyType();
+            dto.status = warranty.getStatus();
+            dto.saleType = warranty.getSaleType();
+            dto.customerName = warranty.getCustomerName();
+            dto.customerEmail = warranty.getCustomerEmail();
+            dto.customerPhone = warranty.getCustomerPhone();
+            dto.startDate = warranty.getStartDate();
+            dto.warrantyStartDate = warranty.getWarrantyStartDate();
+            dto.warrantyEndDate = warranty.getWarrantyEndDate();
+
+            if (warranty.getInventoryItem() != null) {
+                dto.inventoryItemId = warranty.getInventoryItem().getId();
+                dto.serialNumber = warranty.getInventoryItem().getSerialNumber();
+                dto.internalCode = warranty.getInventoryItem().getInternalCode();
+                dto.productName = warranty.getInventoryItem().getProductName();
+                dto.brand = warranty.getInventoryItem().getBrand();
+                dto.model = warranty.getInventoryItem().getModel();
+                dto.salePrice = warranty.getInventoryItem().getSalePrice();
+                dto.soldDate = warranty.getInventoryItem().getSoldDate();
+            }
+
+            return dto;
         }
     }
 }

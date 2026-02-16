@@ -96,10 +96,45 @@ public class SaleService {
         log.info("✅ Venta registrada - ID: {} - Tipo: {} - Precio: ${}", sale.getId(), saleType, dto.getSalePrice());
 
         // 9. Crear registro de garantía
-        log.info("ℹ️ Creación de garantía deshabilitada temporalmente - Se implementará en próxima versión");
+        try {
+            // Verificar si ya existe una garantía para este producto
+            java.util.Optional<Warranty> existingWarranty = warrantyRepository.findByInventoryItemId(item.getId());
+            if (existingWarranty.isPresent()) {
+                log.warn("⚠️ Garantía ya existe para este producto - ID: {}", item.getId());
+                return sale; // Si ya existe, retornamos la venta sin crear duplicada
+            }
+            
+            LocalDateTime now = LocalDateTime.now();
+            
+            // Determinar estado de la garantía
+            String warrantyStatus = "ANTICIPADA".equals(saleType) ? "PENDIENTE" : "ACTIVA";
+            
+            Warranty warranty = Warranty.builder()
+                    .inventoryItem(item)
+                    .customerName(dto.getCustomerName())
+                    .customerEmail(dto.getCustomerEmail())
+                    .customerPhone(dto.getCustomerPhone())
+                    .warrantyCode(UUID.randomUUID().toString())
+                    .qrToken(UUID.randomUUID().toString())
+                    .warrantyType(dto.getWarrantyType() != null ? dto.getWarrantyType() : "SIN_GARANTIA")
+                    .warrantyStartDate(now)
+                    .saleType(saleType)
+                    .notes(dto.getWarrantyNotes())
+                    .startDate(now)
+                    .status(warrantyStatus)
+                    .build();
 
-        // TODO: Implementar warranty cuando se resuelva el error 500 con la tabla warranty
-        // Por ahora, el sistema funciona sin warranty para permitir que las ventas se completen
+            // Calcular fecha de vencimiento
+            warranty.calculateWarrantyEndDate();
+
+            warranty = warrantyRepository.save(warranty);
+            log.info("✅ Garantía registrada - ID: {} - Código: {} - Tipo: {} - Vencimiento: {}", 
+                warranty.getId(), warranty.getWarrantyCode(), warranty.getWarrantyType(), warranty.getWarrantyEndDate());
+        } catch (Exception e) {
+            log.error("❌ Error al crear garantía: {}", e.getMessage(), e);
+            // No lanzamos excepción - la venta ya se guardó, solo falla la garantía
+            log.warn("⚠️ Continuando sin garantía...");
+        }
 
         // 10. Actualizar InventoryItem
         item.setSoldToCustomer(dto.getCustomerName());
