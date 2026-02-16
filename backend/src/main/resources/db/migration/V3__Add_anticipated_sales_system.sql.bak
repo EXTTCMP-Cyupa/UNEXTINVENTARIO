@@ -1,0 +1,66 @@
+-- Migración V3: Sistema de ventas anticipadas y garantías dinámicas
+-- Permite vender productos en tránsito con garantías que se activan al llegar
+
+-- ========== CREAR TABLA SALES ==========
+CREATE TABLE IF NOT EXISTS sales (
+    id BIGSERIAL PRIMARY KEY,
+    inventory_item_id BIGINT NOT NULL REFERENCES inventory_item(id),
+    customer_name VARCHAR(150) NOT NULL,
+    customer_email VARCHAR(150),
+    customer_phone VARCHAR(15),
+    customer_address TEXT,
+    sale_date TIMESTAMP NOT NULL DEFAULT NOW(),
+    sale_price DECIMAL(10,2) NOT NULL,
+    payment_method VARCHAR(50) NOT NULL DEFAULT 'EFECTIVO',
+    notes TEXT,
+    sale_type VARCHAR(50) NOT NULL DEFAULT 'NORMAL', -- NORMAL, ANTICIPADA
+    status_at_sale VARCHAR(50) NOT NULL, -- EN_TRANSITO, DISPONIBLE
+    delivery_date TIMESTAMP, -- Fecha de entrega física (si fue anticipada)
+    profit DECIMAL(10,2),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP
+);
+
+CREATE INDEX idx_sales_inventory_item ON sales(inventory_item_id);
+CREATE INDEX idx_sales_type ON sales(sale_type);
+
+-- ========== ACTUALIZAR TABLA WARRANTY ==========
+-- Agregar nuevas columnas para garantías dinámicas
+
+-- Agregar warranty_code con UUID temporal para registros existentes (nullable primero)
+ALTER TABLE warranty ADD COLUMN IF NOT EXISTS warranty_code VARCHAR(36);
+CREATE INDEX IF NOT EXISTS idx_warranty_code ON warranty(warranty_code);
+
+-- Agregar warranty_type (nullable por ahora, Hibernate lo manejará)
+ALTER TABLE warranty ADD COLUMN IF NOT EXISTS warranty_type VARCHAR(50);
+
+-- Agregar warranty_start_date (puede ser NULL si está pendiente)
+ALTER TABLE warranty ADD COLUMN IF NOT EXISTS warranty_start_date TIMESTAMP;
+
+-- Agregar warranty_end_date (calculada, puede ser NULL)
+ALTER TABLE warranty ADD COLUMN IF NOT EXISTS warranty_end_date TIMESTAMP;
+
+-- Agregar información del cliente para warranties no registradas
+ALTER TABLE warranty ADD COLUMN IF NOT EXISTS customer_name VARCHAR(150);
+ALTER TABLE warranty ADD COLUMN IF NOT EXISTS customer_email VARCHAR(150);
+ALTER TABLE warranty ADD COLUMN IF NOT EXISTS customer_phone VARCHAR(15);
+
+-- Agregar sale_type para saber si fue venta anticipada
+ALTER TABLE warranty ADD COLUMN IF NOT EXISTS sale_type VARCHAR(50);
+
+-- notes puede ser NULL
+ALTER TABLE warranty ADD COLUMN IF NOT EXISTS notes TEXT;
+
+-- updated_at para auditoría
+ALTER TABLE warranty ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP;
+
+-- ========== COMENTARIOS ==========
+COMMENT ON TABLE sales IS 'Registro de ventas (anticipadas en tránsito o normales en disponible)';
+COMMENT ON COLUMN sales.sale_type IS 'NORMAL: venta en DISPONIBLE, ANTICIPADA: venta en EN_TRANSITO';
+COMMENT ON COLUMN sales.delivery_date IS 'Fecha real de entrega física (si fue anticipada)';
+
+COMMENT ON COLUMN warranty.warranty_code IS 'Código único para acceder a la garantía públicamente';
+COMMENT ON COLUMN warranty.warranty_type IS 'SIN_GARANTIA, 1_MES, 6_MESES, 12_MESES';
+COMMENT ON COLUMN warranty.status IS 'PENDIENTE (en tránsito), ACTIVA, VENCIDA, CANCELADA';
+COMMENT ON COLUMN warranty.warranty_start_date IS 'Fecha real de inicio de garantía (cuando llega si fue anticipada)';
+COMMENT ON COLUMN warranty.sale_type IS 'NORMAL o ANTICIPADA';

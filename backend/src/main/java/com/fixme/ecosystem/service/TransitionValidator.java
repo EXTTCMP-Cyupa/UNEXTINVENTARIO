@@ -21,11 +21,11 @@ public class TransitionValidator {
         // PREPARACION_ENVIO puede ir a EN_TRANSITO
         ALLOWED_TRANSITIONS.put("PREPARACION_ENVIO", List.of("EN_TRANSITO"));
         
-        // EN_TRANSITO puede ir a STOCK_LOCAL
+        // EN_TRANSITO puede ir a STOCK_LOCAL (normal) o quedar EN_TRANSITO (venta anticipada hasta llegada)
         ALLOWED_TRANSITIONS.put("EN_TRANSITO", List.of("STOCK_LOCAL"));
         
-        // STOCK_LOCAL puede ir a DISPONIBLE
-        ALLOWED_TRANSITIONS.put("STOCK_LOCAL", List.of("DISPONIBLE"));
+        // STOCK_LOCAL puede ir a DISPONIBLE o VENDIDO (si fue venta anticipada)
+        ALLOWED_TRANSITIONS.put("STOCK_LOCAL", List.of("DISPONIBLE", "VENDIDO"));
         
         // DISPONIBLE puede ir a VENDIDO
         ALLOWED_TRANSITIONS.put("DISPONIBLE", List.of("VENDIDO"));

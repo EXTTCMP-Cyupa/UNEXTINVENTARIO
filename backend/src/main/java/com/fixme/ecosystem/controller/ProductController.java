@@ -4,8 +4,10 @@ import com.fixme.ecosystem.dto.*;
 import com.fixme.ecosystem.entity.InventoryItem;
 import com.fixme.ecosystem.entity.Product;
 import com.fixme.ecosystem.entity.ProductVariant;
+import com.fixme.ecosystem.entity.Sale;
 import com.fixme.ecosystem.service.ProductService;
 import com.fixme.ecosystem.service.InventoryService;
+import com.fixme.ecosystem.service.SaleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -24,6 +26,7 @@ public class ProductController {
 
     private final ProductService productService;
     private final InventoryService inventoryService;
+    private final SaleService saleService;
 
     // ============== CATÁLOGOS ==============
 
@@ -186,7 +189,7 @@ public class ProductController {
     }
 
     @GetMapping("/inventory/transito")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<InventoryItem>> getInTransit() {
         return ResponseEntity.ok(inventoryService.findInTransit());
     }
@@ -198,7 +201,7 @@ public class ProductController {
     }
 
     @GetMapping("/inventory/disponible")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<InventoryItem>> getAvailable() {
         return ResponseEntity.ok(inventoryService.findAvailable());
     }
@@ -215,5 +218,32 @@ public class ProductController {
         log.info("Eliminando producto - ID: {}", inventoryItemId);
         inventoryService.deleteItem(inventoryItemId);
         return ResponseEntity.noContent().build();
+    }
+
+    // ============== GESTIÓN DE VENTAS ==============
+
+    @PostMapping("/inventory/register-sale")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Sale> registerSale(@Valid @RequestBody RegisterSaleDTO dto) {
+        try {
+            log.info("💰 Registrando venta - Item ID: {} - Cliente: {}", dto.getInventoryItemId(), dto.getCustomerName());
+            Sale sale = saleService.registerSale(dto);
+            return ResponseEntity.status(HttpStatus.CREATED).body(sale);
+        } catch (Exception e) {
+            log.error("❌ Error registrando saliente: ", e);
+            throw e;
+        }
+    }
+
+    @GetMapping("/sales")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<Sale>> getAllSales() {
+        return ResponseEntity.ok(saleService.getAllSales());
+    }
+
+    @GetMapping("/sales/anticipated")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<Sale>> getAnticipatedSales() {
+        return ResponseEntity.ok(saleService.getSalesByType("ANTICIPADA"));
     }
 }

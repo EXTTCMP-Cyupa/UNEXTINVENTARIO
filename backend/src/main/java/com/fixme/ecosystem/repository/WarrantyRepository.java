@@ -10,4 +10,5 @@ import java.util.Optional;
 public interface WarrantyRepository extends JpaRepository<Warranty, Long> {
     Optional<Warranty> findByInventoryItemId(Long inventoryItemId);
     Optional<Warranty> findByQrToken(String qrToken);
+    Optional<Warranty> findByWarrantyCode(String warrantyCode);
 }

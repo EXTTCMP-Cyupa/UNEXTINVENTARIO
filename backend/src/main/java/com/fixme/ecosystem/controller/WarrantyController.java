@@ -32,4 +32,16 @@ public class WarrantyController {
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
+
+    /**
+     * Endpoint público para ver garantía por código único
+     * Este link es el que se envía al cliente
+     */
+    @GetMapping("/public/{warrantyCode}")
+    public ResponseEntity<?> getPublicWarranty(@PathVariable String warrantyCode) {
+        log.info("🔍 Consultando garantía pública - Code: {}", warrantyCode);
+        return warrantyService.getPublicWarrantyByCode(warrantyCode)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
 }

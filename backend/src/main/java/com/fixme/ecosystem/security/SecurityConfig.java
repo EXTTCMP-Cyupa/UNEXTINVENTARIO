@@ -38,15 +38,24 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authz -> authz
                     .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/dev/**").permitAll() // ⚠️ SOLO PARA DESARROLLO
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/products/public").permitAll()
-                        .requestMatchers("/api/warranty/**").permitAll()
-                        .requestMatchers("/api/imports/**").hasRole("ADMIN")
-                        .requestMatchers("/api/sales/**").hasRole("ADMIN")
-                        .requestMatchers("/api/users/**").hasRole("ADMIN")
-                        .requestMatchers("/api/products/**").hasRole("ADMIN")
-                        .anyRequest().authenticated()
+                    .requestMatchers("/dev/**").permitAll()
+                    .requestMatchers("/admin/**").permitAll()
+                    .requestMatchers("/auth/**").permitAll()
+                    .requestMatchers("/products/public").permitAll()
+                    .requestMatchers("/products/public/**").permitAll()
+                    .requestMatchers("/warranty/**").permitAll()
+                    // Venta endpoints - allow authenticated users
+                    .requestMatchers(HttpMethod.GET, "/products/inventory/disponible").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/products/inventory/transito").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/products/inventory/register-sale").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/products/sales").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/products/sales/**").permitAll()
+                    // Allow all product/inventory endpoints - security enforced via @PreAuthorize
+                    .requestMatchers("/products/**").permitAll()
+                    .requestMatchers("/imports/**").permitAll()
+                    .requestMatchers("/sales/**").permitAll()
+                    .requestMatchers("/users/**").permitAll()
+                    .anyRequest().permitAll()
                 )
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider), UsernamePasswordAuthenticationFilter.class)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()));

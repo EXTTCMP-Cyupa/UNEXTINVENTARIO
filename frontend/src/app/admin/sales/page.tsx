@@ -23,6 +23,7 @@ interface AvailableProduct {
   productOwner?: string;
   supplier: string;
   daysInStock: number;
+  statusAtSale: string; // EN_TRANSITO o DISPONIBLE
 }
 
 export default function SalesPage() {
@@ -40,8 +41,10 @@ export default function SalesPage() {
   const [saleForm, setSaleForm] = useState({
     customerName: '',
     customerEmail: '',
+    customerPhone: '',
     salePrice: '',
     paymentMethod: 'EFECTIVO',
+    warrantyType: '6_MESES',
     notes: '',
   });
   const [submitting, setSubmitting] = useState(false);
@@ -84,9 +87,25 @@ export default function SalesPage() {
   const fetchAvailableProducts = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/products/inventory/disponible');
-      setProducts(response.data || []);
-      setFilteredProducts(response.data || []);
+      // Fetch both DISPONIBLE and EN_TRANSITO products
+      const [disponibleRes, transitoRes] = await Promise.all([
+        api.get('/products/inventory/disponible'),
+        api.get('/products/inventory/transito'),
+      ]);
+      
+      const disponible = (disponibleRes.data || []).map((p: any) => ({
+        ...p,
+        statusAtSale: 'DISPONIBLE',
+      }));
+      
+      const transito = (transitoRes.data || []).map((p: any) => ({
+        ...p,
+        statusAtSale: 'EN_TRANSITO',
+      }));
+      
+      const allProducts = [...disponible, ...transito];
+      setProducts(allProducts);
+      setFilteredProducts(allProducts);
     } catch (err: any) {
       console.error('Error fetching available products:', err);
     } finally {
@@ -99,8 +118,10 @@ export default function SalesPage() {
     setSaleForm({
       customerName: product.productOwner || '',
       customerEmail: '',
+      customerPhone: '',
       salePrice: product.pricePVP.toString(),
       paymentMethod: 'EFECTIVO',
+      warrantyType: '6_MESES',
       notes: '',
     });
     setShowSaleForm(true);
@@ -125,15 +146,23 @@ export default function SalesPage() {
         throw new Error('El precio de venta debe ser mayor a 0');
       }
 
-      await api.post(`/products/inventory/final-sale/${selectedProduct.id}`, {
+      const isAnticipated = selectedProduct.statusAtSale === 'EN_TRANSITO';
+
+      await api.post('/products/inventory/register-sale', {
+        inventoryItemId: selectedProduct.id,
         customerName: saleForm.customerName.trim(),
         customerEmail: saleForm.customerEmail.trim() || null,
+        customerPhone: saleForm.customerPhone.trim() || null,
         salePrice,
         paymentMethod: saleForm.paymentMethod,
+        warrantyType: saleForm.warrantyType,
         notes: saleForm.notes.trim() || null,
       });
 
-      alert('💰 ¡Venta registrada exitosamente!');
+      const message = isAnticipated
+        ? '🚀 ¡Venta anticipada registrada! El producto se entregará cuando llegue al local.'
+        : '💰 ¡Venta registrada exitosamente!';
+      alert(message);
       setShowSaleForm(false);
       setSelectedProduct(null);
       fetchAvailableProducts();
@@ -146,8 +175,10 @@ export default function SalesPage() {
 
   const calculateMargin = () => {
     if (!selectedProduct) return { margin: 0, marginPercent: 0 };
-    const landedCost =
-      selectedProduct.costFob + selectedProduct.costShipping + selectedProduct.costCustoms;
+    const costFob = selectedProduct.costFob ?? 0;
+    const costShipping = selectedProduct.costShipping ?? 0;
+    const costCustoms = selectedProduct.costCustoms ?? 0;
+    const landedCost = costFob + costShipping + costCustoms;
     const salePrice = parseFloat(saleForm.salePrice) || 0;
     const margin = salePrice - landedCost;
     const marginPercent = landedCost > 0 ? (margin / landedCost) * 100 : 0;
@@ -193,7 +224,7 @@ export default function SalesPage() {
             <CardContent className="p-4">
               <p className="text-xs font-semibold text-gray-600 uppercase">Valor Stock (PVP)</p>
               <p className="text-3xl font-bold text-blue-700 mt-2">
-                ${products.reduce((sum, p) => sum + p.pricePVP, 0).toFixed(2)}
+                ${products.reduce((sum, p) => sum + (p.pricePVP ?? 0), 0).toFixed(2)}
               </p>
             </CardContent>
           </Card>
@@ -205,7 +236,7 @@ export default function SalesPage() {
                 {products
                   .reduce(
                     (sum, p) =>
-                      sum + (p.pricePVP - (p.costFob + p.costShipping + p.costCustoms)),
+                      sum + ((p.pricePVP ?? 0) - ((p.costFob ?? 0) + (p.costShipping ?? 0) + (p.costCustoms ?? 0))),
                     0
                   )
                   .toFixed(2)}
@@ -249,10 +280,16 @@ export default function SalesPage() {
 
                 {!loading &&
                   filteredProducts.map((product) => {
-                    const landedCost =
-                      product.costFob + product.costShipping + product.costCustoms;
-                    const marginPVP = product.pricePVP - landedCost;
-                    const marginPVPPercent = (marginPVP / landedCost) * 100;
+                    // Valores seguros con defaults
+                    const pricePVP = product.pricePVP ?? 0;
+                    const priceB2B = product.priceB2B ?? 0;
+                    const costFob = product.costFob ?? 0;
+                    const costShipping = product.costShipping ?? 0;
+                    const costCustoms = product.costCustoms ?? 0;
+                    
+                    const landedCost = costFob + costShipping + costCustoms;
+                    const marginPVP = pricePVP - landedCost;
+                    const marginPVPPercent = landedCost > 0 ? (marginPVP / landedCost) * 100 : 0;
 
                     return (
                       <div
@@ -265,8 +302,15 @@ export default function SalesPage() {
                         }`}
                       >
                         <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-semibold text-gray-900">{product.productName}</p>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="font-semibold text-gray-900">{product.productName}</p>
+                              {product.statusAtSale === 'EN_TRANSITO' && (
+                                <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded-full">
+                                  🚀 VENTA ANTICIPADA
+                                </span>
+                              )}
+                            </div>
                             <p className="text-xs text-gray-500 font-mono">
                               {product.internalCode}
                               {product.serialNumber && ` | S/N: ${product.serialNumber}`}
@@ -274,13 +318,18 @@ export default function SalesPage() {
                             <p className="text-xs text-gray-600 mt-1">
                               {product.brand} {product.model && `• ${product.model}`}
                             </p>
+                            {product.statusAtSale === 'EN_TRANSITO' && (
+                              <p className="text-xs text-amber-600 mt-1 font-medium">
+                                ⏳ En tránsito - Se entregará al llegar
+                              </p>
+                            )}
                           </div>
                           <div className="text-right">
                             <p className="text-lg font-bold text-teal-700">
-                              ${product.pricePVP.toFixed(2)}
+                              ${pricePVP.toFixed(2)}
                             </p>
                             <p className="text-xs text-gray-500">
-                              B2B: ${product.priceB2B.toFixed(2)}
+                              B2B: ${priceB2B.toFixed(2)}
                             </p>
                             <p
                               className={`text-xs font-semibold ${
@@ -317,14 +366,30 @@ export default function SalesPage() {
                 <form onSubmit={handleSubmitSale} className="space-y-4">
                   {/* Info del Producto */}
                   {selectedProduct && (
-                    <div className="bg-teal-50 border border-teal-200 rounded-lg p-4 mb-4">
-                      <p className="font-semibold text-gray-900">{selectedProduct.productName}</p>
+                    <div className={`border rounded-lg p-4 mb-4 ${
+                      selectedProduct.statusAtSale === 'EN_TRANSITO'
+                        ? 'bg-yellow-50 border-yellow-200'
+                        : 'bg-teal-50 border-teal-200'
+                    }`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-semibold text-gray-900">{selectedProduct.productName}</p>
+                        {selectedProduct.statusAtSale === 'EN_TRANSITO' && (
+                          <span className="px-2 py-0.5 bg-yellow-500 text-white text-xs font-semibold rounded-full">
+                            🚀 VENTA ANTICIPADA
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm text-gray-600">
                         {selectedProduct.brand} • {selectedProduct.internalCode}
                       </p>
                       {selectedProduct.serialNumber && (
                         <p className="text-xs text-gray-500 font-mono mt-1">
                           S/N: {selectedProduct.serialNumber}
+                        </p>
+                      )}
+                      {selectedProduct.statusAtSale === 'EN_TRANSITO' && (
+                        <p className="text-xs text-amber-700 mt-2 font-medium">
+                          ⚠️ Este producto está en tránsito. La garantía se activará cuando llegue al local.
                         </p>
                       )}
                       <div className="grid grid-cols-2 gap-2 mt-3">
@@ -373,6 +438,20 @@ export default function SalesPage() {
                     />
                   </div>
 
+                  {/* Teléfono (opcional) */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Teléfono (opcional)
+                    </label>
+                    <input
+                      type="tel"
+                      value={saleForm.customerPhone}
+                      onChange={(e) => setSaleForm({ ...saleForm, customerPhone: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      placeholder="+593 99 123 4567"
+                    />
+                  </div>
+
                   {/* Precio de Venta */}
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -418,6 +497,28 @@ export default function SalesPage() {
                       <option value="TARJETA">💳 Tarjeta</option>
                       <option value="CREDITO">📋 Crédito</option>
                     </select>
+                  </div>
+
+                  {/* Tipo de Garantía */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Tipo de Garantía
+                    </label>
+                    <select
+                      value={saleForm.warrantyType}
+                      onChange={(e) => setSaleForm({ ...saleForm, warrantyType: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="SIN_GARANTIA">❌ Sin Garantía</option>
+                      <option value="1_MES">✅ 1 Mes</option>
+                      <option value="6_MESES">✅ 6 Meses</option>
+                      <option value="12_MESES">✅ 12 Meses (1 Año)</option>
+                    </select>
+                    {selectedProduct?.statusAtSale === 'EN_TRANSITO' && (
+                      <p className="text-xs text-amber-600 mt-1">
+                        ⏳ La garantía iniciará cuando el producto llegue al local
+                      </p>
+                    )}
                   </div>
 
                   {/* Notas */}

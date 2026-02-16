@@ -2,7 +2,11 @@ package com.fixme.ecosystem.service;
 
 import com.fixme.ecosystem.dto.*;
 import com.fixme.ecosystem.entity.InventoryItem;
+import com.fixme.ecosystem.entity.Sale;
+import com.fixme.ecosystem.entity.Warranty;
 import com.fixme.ecosystem.repository.InventoryItemRepository;
+import com.fixme.ecosystem.repository.SaleRepository;
+import com.fixme.ecosystem.repository.WarrantyRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,6 +24,8 @@ import java.util.UUID;
 public class InventoryService {
 
     private final InventoryItemRepository inventoryItemRepository;
+    private final SaleRepository saleRepository;
+    private final WarrantyRepository warrantyRepository;
     private final TransitionValidator transitionValidator;
 
     // =================== PASO 1: COMPRADO ===================
@@ -234,13 +240,46 @@ public class InventoryService {
             throw new IllegalArgumentException("Precios no fueron ingresados en PREPARACION. Revisar preparación del envío");
         }
 
-        // AUTO-TRANSICION: Confirmada la recepción, pasar automáticamente a DISPONIBLE
-        item.setStatus("DISPONIBLE");
-        InventoryItem saved = inventoryItemRepository.save(item);
-        log.info("✅ [AUTO-TRANSICION] STOCK_LOCAL → DISPONIBLE - {} - Serial: {} - B2B: ${} / PVP: ${} - Owner: {}", 
-            item.getInternalCode(), item.getSerialNumber(), item.getPriceB2B(), item.getPricePVP(), 
-            item.getProductOwner() != null ? item.getProductOwner() : "N/A");
-        return saved;
+        // DETECTAR SI TIENE VENTA ANTICIPADA
+        Optional<Sale> anticipatedSale = saleRepository.findByInventoryItemId(item.getId());
+        
+        if (anticipatedSale.isPresent() && "ANTICIPADA".equals(anticipatedSale.get().getSaleType())) {
+            log.info("🎯 Producto tiene VENTA ANTICIPADA - Cliente: {}", anticipatedSale.get().getCustomerName());
+            
+            // Marcar fecha de entrega en la venta
+            Sale sale = anticipatedSale.get();
+            sale.setDeliveryDate(LocalDateTime.now());
+            saleRepository.save(sale);
+            
+            // Activar garantía
+            Optional<Warranty> warranty = warrantyRepository.findByInventoryItemId(item.getId());
+            if (warranty.isPresent() && "PENDIENTE".equals(warranty.get().getStatus())) {
+                Warranty w = warranty.get();
+                w.setWarrantyStartDate(LocalDateTime.now());
+                w.setStatus("ACTIVA");
+                w.calculateWarrantyEndDate();
+                warrantyRepository.save(w);
+                log.info("✅ Garantía ACTIVADA - Code: {} - Inicia: {} - Vence: {}", 
+                    w.getWarrantyCode(), w.getWarrantyStartDate(), w.getWarrantyEndDate());
+            }
+            
+            // AUTO-TRANSICION: Venta anticipada entregada → VENDIDO directo
+            transitionValidator.validateTransition("STOCK_LOCAL", "VENDIDO");
+            item.setStatus("VENDIDO");
+            InventoryItem saved = inventoryItemRepository.save(item);
+            log.info("✅ [VENTA ANTICIPADA ENTREGADA] STOCK_LOCAL → VENDIDO - {} - Cliente: {}", 
+                item.getInternalCode(), sale.getCustomerName());
+            return saved;
+            
+        } else {
+            // AUTO-TRANSICION: Sin venta anticipada, pasar a DISPONIBLE para venta normal
+            item.setStatus("DISPONIBLE");
+            InventoryItem saved = inventoryItemRepository.save(item);
+            log.info("✅ [AUTO-TRANSICION] STOCK_LOCAL → DISPONIBLE - {} - Serial: {} - B2B: ${} / PVP: ${} - Owner: {}", 
+                item.getInternalCode(), item.getSerialNumber(), item.getPriceB2B(), item.getPricePVP(), 
+                item.getProductOwner() != null ? item.getProductOwner() : "N/A");
+            return saved;
+        }
     }
 
     // =================== PASO 5: VENDIDO ===================

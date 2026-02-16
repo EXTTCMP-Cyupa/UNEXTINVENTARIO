@@ -58,6 +58,27 @@ export default function TransitRowExpanded({
   const isInTransit = status === 'EN_TRANSITO';
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  const [localReceiptData, setLocalReceiptData] = useState<LocalReceiptData>({
+    serialNumber: '',
+    priceB2B: priceB2B || 0,
+    pricePVP: pricePVP || 0,
+  });
+  
+  const [saleData, setSaleData] = useState<SaleData>({
+    customerName: '',
+    customerEmail: '',
+    reservedPrice: pricePVP || 0,
+  });
+  
+  const isPreparation = status === 'PREPARACION_ENVIO';
+  
+  const [sendTransitData, setSendTransitData] = useState({
+    trackingNumber: '',
+    costShippingFinal: '',
+    costCustomsFinal: '',
+    notes: '',
+  });
 
   const handleUpdateStatus = async (newStage: string) => {
     setError(null);
@@ -463,7 +484,7 @@ export default function TransitRowExpanded({
             </button>
             <button
               type="button"
-              onClick={handleUpdateStatus}
+              onClick={() => handleUpdateStatus('EN_CAMINO_AL_LOCAL')}
               disabled={loading}
               className="flex-1 px-4 py-2.5 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-400 text-white font-semibold rounded-lg"
             >

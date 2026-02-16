@@ -1,0 +1,32 @@
+-- ========== MIGRACIÓN V4: CORREGIR VALORES NULL EN WARRANTY ==========
+-- Esta migración corrige valores NULL creados por migraciones anteriores
+
+-- Actualizar warranty_code NULL a UUID únicos
+UPDATE warranty 
+SET warranty_code = md5(random()::text || clock_timestamp()::text || id::text)::uuid
+WHERE warranty_code IS NULL;
+
+-- Actualizar warranty_type NULL a SIN_GARANTIA
+UPDATE warranty 
+SET warranty_type = 'SIN_GARANTIA'
+WHERE warranty_type IS NULL;
+
+-- Actualizar status NULL (si hay alguno)
+UPDATE warranty 
+SET status = 'PENDIENTE'
+WHERE status IS NULL;
+
+-- Actualizar sale_type NULL (si hay alguno)
+UPDATE warranty 
+SET sale_type = 'NORMAL'
+WHERE sale_type IS NULL;
+
+-- Actualizar created_at NULL a NOW() (si hay alguno)
+UPDATE warranty 
+SET created_at = NOW()
+WHERE created_at IS NULL;
+
+-- Actualizar startDate NULL (legacy) a created_at
+UPDATE warranty 
+SET "startDate" = created_at
+WHERE "startDate" IS NULL;

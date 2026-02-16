@@ -225,13 +225,13 @@ export default function StockLocalRowExpanded({
         </div>
 
         {/* Margen Sugerido */}
-        {form.priceB2B && (
+        {priceB2BSafe > 0 && (
           <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
             <p className="text-sm font-semibold text-green-900 mb-3">📈 Margen Estimado</p>
             <div className="space-y-2 text-sm text-green-800">
               <div className="flex justify-between">
                 <span>Precio B2B:</span>
-                <span className="font-bold">${(parseFloat(form.priceB2B) || 0).toFixed(2)}</span>
+                <span className="font-bold">${priceB2BSafe.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Costo Total:</span>
@@ -239,12 +239,12 @@ export default function StockLocalRowExpanded({
               </div>
               <div className="border-t border-green-300 pt-2 mt-2 flex justify-between font-bold text-green-900">
                 <span>Margen:</span>
-                <span>${(parseFloat(form.priceB2B) - landedCost || 0).toFixed(2)}</span>
+                <span>${(priceB2BSafe - landedCost).toFixed(2)}</span>
               </div>
               <div className="text-xs text-green-600 mt-1">
                 {landedCost > 0 && (
                   <span>
-                    Margen: {(((parseFloat(form.priceB2B) - landedCost) / landedCost) * 100).toFixed(1)}%
+                    Margen: {(((priceB2BSafe - landedCost) / landedCost) * 100).toFixed(1)}%
                   </span>
                 )}
               </div>
