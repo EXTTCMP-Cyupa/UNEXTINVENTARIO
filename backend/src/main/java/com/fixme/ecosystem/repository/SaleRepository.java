@@ -1,6 +1,7 @@
 package com.fixme.ecosystem.repository;
 
 import com.fixme.ecosystem.entity.Sale;
+import com.fixme.ecosystem.entity.Order;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -12,4 +13,5 @@ public interface SaleRepository extends JpaRepository<Sale, Long> {
     Optional<Sale> findByInventoryItemId(Long inventoryItemId);
     List<Sale> findAllByOrderBySaleDateDesc();
     List<Sale> findBySaleType(String saleType);
+    List<Sale> findByOrder(Order order);
 }

@@ -5,6 +5,7 @@ import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardHeader, CardContent, CardTitle, KPI, Badge } from '@/components/ui';
 import { api } from '@/services/api';
 import { useAuthStore } from '@/store/authStore';
+import PendingOrdersModal from '@/components/PendingOrdersModal';
 
 interface DashboardStats {
   totalProducts: number;
@@ -475,6 +476,7 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
       </div>
+      <PendingOrdersModal />
     </DashboardLayout>
   );
 }

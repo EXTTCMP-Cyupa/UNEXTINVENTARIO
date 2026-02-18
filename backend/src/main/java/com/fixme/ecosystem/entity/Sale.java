@@ -26,6 +26,11 @@ public class Sale {
     @JoinColumn(name = "inventory_item_id", nullable = false)
     private InventoryItem inventoryItem;
 
+    // Relación con Order (opcional, para órdenes de compra)
+    @ManyToOne
+    @JoinColumn(name = "order_id")
+    private Order order;
+
     // Cliente
     @Column(nullable = false, length = 150)
     private String customerName;

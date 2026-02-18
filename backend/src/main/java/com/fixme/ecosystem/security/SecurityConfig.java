@@ -47,11 +47,17 @@ public class SecurityConfig {
                     // Venta endpoints - allow authenticated users
                     .requestMatchers(HttpMethod.GET, "/products/inventory/disponible").permitAll()
                     .requestMatchers(HttpMethod.GET, "/products/inventory/transito").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/products/inventory/stock-local").permitAll()
                     .requestMatchers(HttpMethod.POST, "/products/inventory/register-sale").permitAll()
                     .requestMatchers(HttpMethod.GET, "/products/sales").permitAll()
                     .requestMatchers(HttpMethod.GET, "/products/sales/**").permitAll()
+                    // Orders - checkout público y órdenes pendientes públicas
+                    .requestMatchers(HttpMethod.POST, "/orders/checkout").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/orders/pending").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/orders/**").permitAll()
                     // Allow all product/inventory endpoints - security enforced via @PreAuthorize
                     .requestMatchers("/products/**").permitAll()
+                    .requestMatchers("/orders/**").permitAll()
                     .requestMatchers("/imports/**").permitAll()
                     .requestMatchers("/sales/**").permitAll()
                     .requestMatchers("/users/**").permitAll()

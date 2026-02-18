@@ -189,19 +189,16 @@ public class ProductController {
     }
 
     @GetMapping("/inventory/transito")
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<InventoryItem>> getInTransit() {
         return ResponseEntity.ok(inventoryService.findInTransit());
     }
 
     @GetMapping("/inventory/stock-local")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<InventoryItem>> getLocalStock() {
         return ResponseEntity.ok(inventoryService.findInLocalStock());
     }
 
     @GetMapping("/inventory/disponible")
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<InventoryItem>> getAvailable() {
         return ResponseEntity.ok(inventoryService.findAvailable());
     }

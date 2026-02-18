@@ -4,15 +4,18 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
+import { usePendingOrdersModal } from '@/context/PendingOrdersContext';
 
 interface NavItem {
   label: string;
   href: string;
   icon: string;
+  modal?: boolean;
 }
 
 const navItems: NavItem[] = [
   { label: 'Dashboard', href: '/admin', icon: '📊' },
+  { label: 'Órdenes Pendientes', href: '#', icon: '📦', modal: true },
   { label: 'Productos', href: '/admin/products-analysis', icon: '📦' },
   { label: 'Inventario', href: '/admin/inventory', icon: '📋' },
   { label: 'Ventas', href: '/admin/sales', icon: '💰' },
@@ -25,6 +28,7 @@ const navItems: NavItem[] = [
 export const Sidebar: React.FC = () => {
   const pathname = usePathname();
   const { user, logout, initAuth } = useAuthStore();
+  const { openModal } = usePendingOrdersModal();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -39,6 +43,12 @@ export const Sidebar: React.FC = () => {
     return pathname?.startsWith(href);
   };
 
+  const handleNavClick = (item: NavItem) => {
+    if (item.modal) {
+      openModal();
+    }
+  };
+
   return (
     <aside className="w-64 bg-gray-900 min-h-screen flex flex-col">
       {/* Logo */}
@@ -51,21 +61,38 @@ export const Sidebar: React.FC = () => {
       <nav className="flex-1 p-4">
         <ul className="space-y-2">
           {navItems.map((item) => (
-            <li key={item.href}>
-              <Link
-                href={item.href}
-                className={`
-                  flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200
-                  ${
-                    isActive(item.href)
-                      ? 'bg-blue-600 text-white shadow-lg'
-                      : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                  }
-                `}
-              >
-                <span className="text-lg">{item.icon}</span>
-                <span className="text-sm font-medium">{item.label}</span>
-              </Link>
+            <li key={item.label}>
+              {item.modal ? (
+                <button
+                  onClick={() => handleNavClick(item)}
+                  className={`
+                    w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200
+                    ${
+                      false
+                        ? 'bg-blue-600 text-white shadow-lg'
+                        : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                    }
+                  `}
+                >
+                  <span className="text-lg">{item.icon}</span>
+                  <span className="text-sm font-medium">{item.label}</span>
+                </button>
+              ) : (
+                <Link
+                  href={item.href}
+                  className={`
+                    flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200
+                    ${
+                      isActive(item.href)
+                        ? 'bg-blue-600 text-white shadow-lg'
+                        : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                    }
+                  `}
+                >
+                  <span className="text-lg">{item.icon}</span>
+                  <span className="text-sm font-medium">{item.label}</span>
+                </Link>
+              )}
             </li>
           ))}
         </ul>

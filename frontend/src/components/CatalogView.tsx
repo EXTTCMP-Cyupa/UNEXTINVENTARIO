@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/services/api';
 import { useAuthStore } from '@/store/authStore';
+import { useCart } from '@/context/CartContext';
 
 interface InventoryItem {
   id: number;
@@ -25,7 +26,9 @@ export default function CatalogView() {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const { isAuthenticated, user } = useAuthStore();
+  const { addItem } = useCart();
 
   useEffect(() => {
     setMounted(true);
@@ -36,16 +39,18 @@ export default function CatalogView() {
 
     const fetchData = async () => {
       try {
-        // Fetch both available and products coming soon
-        const [availableResponse, transitResponse] = await Promise.all([
-          api.get<InventoryItem[]>('/products/inventory/available'),
-          api.get<InventoryItem[]>('/products/inventory/transit'),
+        // Fetch available, in transit, and local stock products
+        const [availableResponse, transitResponse, stockLocalResponse] = await Promise.all([
+          api.get<InventoryItem[]>('/products/inventory/disponible'),
+          api.get<InventoryItem[]>('/products/inventory/transito'),
+          api.get<InventoryItem[]>('/products/inventory/stock-local'),
         ]);
 
         const available = availableResponse.data || [];
         const transit = transitResponse.data || [];
+        const stockLocal = stockLocalResponse.data || [];
         
-        setInventory([...available, ...transit].sort((a, b) => 
+        setInventory([...available, ...transit, ...stockLocal].sort((a, b) => 
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         ));
       } catch (err) {
@@ -59,27 +64,43 @@ export default function CatalogView() {
     fetchData();
   }, [mounted]);
 
+  const handleAddToCart = (item: InventoryItem) => {
+    const price = getPrice(item);
+    addItem({
+      id: item.id,
+      productName: item.productName,
+      brand: item.brand,
+      model: item.model,
+      price,
+      inventoryItemId: item.id,
+      quantity: 1,
+    });
+
+    // Mostrar notificación
+    setSuccessMessage(`${item.productName} agregado al carrito`);
+    setTimeout(() => setSuccessMessage(null), 3000);
+  };
+
   if (!mounted) return null;
 
   if (loading) {
     return (
-      <div className="text-center py-8">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <p className="text-gray-600 mt-2">Cargando catálogo...</p>
+      <div className="min-h-[400px] flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
+          <p className="text-gray-600 mt-4 font-medium">Cargando catálogo...</p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-400 text-red-700 px-4 py-3 rounded text-center">
-        {error}
+      <div className="max-w-md mx-auto mt-8 bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl text-center">
+        <p className="font-semibold">{error}</p>
       </div>
     );
   }
-
-  const availableItems = inventory.filter(i => i.status === 'DISPONIBLE');
-  const inTransitItems = inventory.filter(i => i.status === 'EN_TRANSITO');
 
   const getPrice = (item: InventoryItem) => {
     if (isAuthenticated && user?.role === 'PARTNER') {
@@ -88,146 +109,145 @@ export default function CatalogView() {
     return item.status === 'EN_TRANSITO' ? item.estimatedPrice : item.pricePVP;
   };
 
+  const truncateTitle = (title: string, maxLength: number = 55): string => {
+    if (title.length <= maxLength) return title;
+    return title.substring(0, maxLength).trim() + '...';
+  };
+
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      {/* Productos Disponibles */}
-      {availableItems.length > 0 && (
-        <div className="mb-12">
-          <h2 className="text-3xl font-bold mb-6 text-gray-900">🟢 Productos Disponibles</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {availableItems.map((item) => (
-              <div
-                key={item.id}
-                className="bg-white rounded-lg shadow-md hover:shadow-xl transition overflow-hidden border-l-4 border-green-500"
-              >
-                {/* Imagen placeholder */}
-                <div className="bg-gradient-to-br from-green-100 to-green-50 h-48 flex items-center justify-center">
-                  <div className="text-center">
-                    <p className="text-4xl">📦</p>
-                    <p className="text-gray-600 text-sm mt-2">{item.brand} {item.model}</p>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Hero Header */}
+      <div className="mb-10 text-center">
+        <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-3">
+          Catálogo de Productos
+        </h1>
+        <p className="text-lg text-gray-600">
+          Encuentra las mejores computadoras y accesorios tecnológicos
+        </p>
+      </div>
+
+      {/* Productos Grid - Compacto y Eficiente */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+        {inventory.map((item) => {
+          const isAvailable = item.status === 'DISPONIBLE';
+          const price = getPrice(item);
+          
+          return (
+            <div
+              key={item.id}
+              className="group bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-200 hover:border-blue-300 flex flex-col h-full overflow-hidden"
+            >
+              {/* Área de Imagen - Altura Fija */}
+              <div className="relative h-[200px] bg-gray-50 overflow-hidden">
+                {/* Placeholder para imagen futura con object-fit: contain */}
+                <div className="absolute inset-0 flex items-center justify-center p-6">
+                  <div className="text-center w-full">
+                    <div className="text-5xl mb-2 opacity-30">
+                      {isAvailable ? '💻' : item.status === 'STOCK_LOCAL' ? '📤' : '📦'}
+                    </div>
+                    <p className="text-xs text-gray-400 font-medium">
+                      {item.brand} {item.model}
+                    </p>
                   </div>
                 </div>
+                
+                {/* Badge de Estado - Flotante Esquina Superior Derecha */}
+                <div className="absolute top-2 right-2 z-10">
+                  {isAvailable ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-green-500 text-white shadow-md uppercase tracking-wide">
+                      Disponible
+                    </span>
+                  ) : item.status === 'STOCK_LOCAL' ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-blue-500 text-white shadow-md uppercase tracking-wide">
+                      Por Llegar
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-amber-500 text-white shadow-md uppercase tracking-wide">
+                      En Tránsito
+                    </span>
+                  )}
+                </div>
 
-                <div className="p-4">
-                  {/* Nombre y Código */}
-                  <div className="mb-3">
-                    <h3 className="font-bold text-lg text-gray-900">{item.productName}</h3>
-                    <p className="text-xs text-gray-500">
-                      <span className="font-mono bg-gray-100 px-2 py-1 rounded">{item.internalCode}</span>
-                    </p>
-                  </div>
+                {/* Hover Effect Sutil */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              </div>
 
-                  {/* Especificaciones */}
-                  <p className="text-sm text-gray-600 mb-3 line-clamp-2">{item.specs}</p>
+              {/* Contenido de la Tarjeta */}
+              <div className="p-4 flex flex-col flex-grow">
+                {/* Marca | Modelo - Subtítulo pequeño */}
+                <div className="mb-1">
+                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
+                    {item.brand}{item.model && ` | ${item.model}`}
+                  </p>
+                </div>
 
-                  {/* Marca y Modelo */}
-                  <div className="mb-4 pb-4 border-b border-gray-200">
-                    <div className="flex gap-2 text-xs">
-                      {item.brand && <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded">{item.brand}</span>}
-                      {item.model && <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded">{item.model}</span>}
-                    </div>
-                  </div>
+                {/* Título del Producto - Limitado a 55 caracteres */}
+                <h3 className="text-sm font-bold text-gray-900 mb-2 line-clamp-2 leading-tight group-hover:text-blue-600 transition-colors min-h-[2.5rem]">
+                  {truncateTitle(item.productName)}
+                </h3>
 
-                  {/* Precios */}
-                  <div className="mb-4">
-                    <p className="text-xs text-gray-600 mb-1">
-                      {isAuthenticated && user?.role === 'PARTNER' ? 'Precio B2B' : 'Precio PVP'}
-                    </p>
-                    <p className="font-bold text-2xl text-green-700">${getPrice(item).toFixed(2)}</p>
-                  </div>
+                {/* Descripción - Completa sin acortar */}
+                <p className="text-xs text-gray-600 mb-3 leading-relaxed">
+                  {item.specs}
+                </p>
 
-                  {/* Serial Number */}
-                  {item.serialNumber && (
-                    <p className="text-xs text-gray-500 text-center mb-4 font-mono bg-gray-50 p-2 rounded">
-                      📱 {item.serialNumber}
+                {/* Espaciador flexible para empujar precio y botones al fondo */}
+                <div className="flex-grow"></div>
+
+                {/* Precio - Elemento más visible */}
+                <div className="mb-3">
+                  <p className="text-2xl font-bold text-gray-900">
+                    ${price ? price.toFixed(2) : '---'}
+                  </p>
+                  {!isAvailable && (
+                    <p className="text-[10px] text-amber-600 font-medium mt-0.5">
+                      Precio estimado*
                     </p>
                   )}
-
-                  {/* Botón */}
-                  <button className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded transition">
-                    🛒 Agregar al Carrito
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Productos en Tránsito */}
-      {inTransitItems.length > 0 && (
-        <div>
-          <h2 className="text-3xl font-bold mb-6 text-gray-900">✈️ Llega Pronto</h2>
-          <p className="text-gray-600 mb-6">Estos productos están en tránsito internacional y llegarán pronto</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {inTransitItems.map((item) => (
-              <div
-                key={item.id}
-                className="bg-white rounded-lg shadow-md hover:shadow-xl transition overflow-hidden border-l-4 border-yellow-500 opacity-90"
-              >
-                {/* Imagen placeholder */}
-                <div className="bg-gradient-to-br from-yellow-100 to-yellow-50 h-48 flex items-center justify-center relative">
-                  <div className="text-center">
-                    <p className="text-4xl">⏳</p>
-                    <p className="text-gray-600 text-sm mt-2">En Tránsito</p>
-                  </div>
-                  <div className="absolute top-2 right-2 bg-yellow-500 text-white px-3 py-1 rounded-full text-xs font-bold animate-pulse">
-                    EN TRÁNSITO
-                  </div>
-                </div>
-
-                <div className="p-4">
-                  {/* Nombre y Código */}
-                  <div className="mb-3">
-                    <h3 className="font-bold text-lg text-gray-900">{item.productName}</h3>
-                    <p className="text-xs text-gray-500">
-                      <span className="font-mono bg-gray-100 px-2 py-1 rounded">{item.internalCode}</span>
+                  {isAuthenticated && user?.role === 'PARTNER' && (
+                    <p className="text-[10px] text-blue-600 font-medium mt-0.5">
+                      Precio B2B
                     </p>
-                  </div>
+                  )}
+                </div>
 
-                  {/* Especificaciones */}
-                  <p className="text-sm text-gray-600 mb-3 line-clamp-2">{item.specs}</p>
-
-                  {/* Marca y Modelo */}
-                  <div className="mb-4 pb-4 border-b border-gray-200">
-                    <div className="flex gap-2 text-xs">
-                      {item.brand && <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded">{item.brand}</span>}
-                      {item.model && <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded">{item.model}</span>}
-                    </div>
-                  </div>
-
-                  {/* Precio Estimado */}
-                  <div className="bg-yellow-50 rounded p-3 mb-4">
-                    <p className="text-xs text-yellow-600 font-semibold">Precio Estimado</p>
-                    <p className="font-bold text-yellow-700 text-2xl">${item.estimatedPrice.toFixed(2)}</p>
-                    <p className="text-xs text-gray-500 mt-1">*(Sujeto a cambios)</p>
-                  </div>
-
-                  {/* Proveedor */}
-                  <p className="text-xs text-gray-600 text-center mb-4 bg-gray-50 p-2 rounded">
-                    📦 Origen: Internacional
-                  </p>
-
-                  {/* Botón deshabilitado */}
+                {/* Botones - Alineados horizontalmente */}
+                <div className="flex gap-2">
+                  {/* Botón Principal - 75% ancho */}
                   <button
-                    disabled
-                    className="w-full bg-gray-400 text-white font-semibold py-2 rounded cursor-not-allowed opacity-60"
+                    onClick={() => handleAddToCart(item)}
+                    className="flex-[3] bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-semibold py-2 px-3 rounded-lg transition-all duration-200 disabled:bg-gray-300 disabled:cursor-not-allowed disabled:text-gray-500"
+                    disabled={!isAvailable}
                   >
-                    ⏳ Disponible Pronto
+                    {isAvailable ? '🛒 Agregar' : 'Próximamente'}
+                  </button>
+                  
+                  {/* Botón Secundario - 25% ancho */}
+                  <button className="flex-1 bg-white hover:bg-gray-50 active:bg-gray-100 text-gray-700 text-sm font-medium py-2 px-2 rounded-lg transition-all duration-200 border border-gray-300 hover:border-gray-400">
+                    👁️
                   </button>
                 </div>
               </div>
-            ))}
-          </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Notificación de Éxito */}
+      {successMessage && (
+        <div className="fixed top-6 right-6 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg animate-pulse">
+          {successMessage}
         </div>
       )}
 
       {/* Sin productos */}
-      {availableItems.length === 0 && inTransitItems.length === 0 && (
-        <div className="text-center py-16 bg-gray-50 rounded-lg">
-          <p className="text-4xl mb-4">📭</p>
-          <p className="text-gray-600 text-lg font-semibold">No hay productos disponibles</p>
-          <p className="text-gray-500 text-sm mt-2">
+      {inventory.length === 0 && (
+        <div className="text-center py-20 bg-gray-50 rounded-2xl">
+          <div className="text-7xl mb-6">📭</div>
+          <h3 className="text-2xl font-bold text-gray-900 mb-3">
+            No hay productos disponibles
+          </h3>
+          <p className="text-gray-600 max-w-md mx-auto">
             Vuelve pronto. Los productos aparecerán aquí cuando se agreguen al sistema
           </p>
         </div>
