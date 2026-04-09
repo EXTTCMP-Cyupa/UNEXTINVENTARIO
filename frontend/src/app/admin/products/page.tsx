@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardHeader, CardContent } from '@/components/ui';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import AdminStatusBanner from '@/components/admin/AdminStatusBanner';
 import InventoryIngresoForm from '@/components/InventoryIngresoForm';
 import InventoryList from '@/components/InventoryList';
 import TransitManagementBoard from '@/components/TransitManagementBoard';
@@ -17,6 +19,7 @@ export default function AdminProductsPage() {
   const { user, token } = useAuthStore();
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('list');
+  const [lastUpdated, setLastUpdated] = useState('');
 
   useEffect(() => {
     setMounted(true);
@@ -27,6 +30,12 @@ export default function AdminProductsPage() {
       router.push('/login');
     }
   }, [mounted, user, router]);
+
+  useEffect(() => {
+    if (mounted && user?.role === 'ADMIN') {
+      setLastUpdated(new Date().toLocaleString());
+    }
+  }, [mounted, user, activeTab]);
 
   if (!mounted || !user || user.role !== 'ADMIN') {
     return (
@@ -54,12 +63,16 @@ export default function AdminProductsPage() {
   return (
     <DashboardLayout>
       <div className="p-8">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-1">Gestión de Inventario</h1>
-          <p className="text-gray-600">
-            Administra productos, ingresos de mercadería y trazabilidad
-          </p>
+        <div className="mb-6 space-y-4">
+          <AdminPageHeader
+            title="Gestion de productos"
+            description="Administra inventario, ingresos, transito y trazabilidad"
+            lastUpdated={lastUpdated}
+          />
+          <AdminStatusBanner
+            variant="info"
+            message="Selecciona una sola pestaña por tarea para reducir errores y mantener foco operativo."
+          />
         </div>
 
         {/* Tabs */}

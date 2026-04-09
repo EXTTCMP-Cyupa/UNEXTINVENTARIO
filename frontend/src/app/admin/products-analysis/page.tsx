@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardHeader, CardContent } from '@/components/ui';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import AdminStatusBanner from '@/components/admin/AdminStatusBanner';
 import ProductsAnalysisTable from '@/components/ProductsAnalysisTable';
 import { useAuthStore } from '@/store/authStore';
 
@@ -12,6 +14,7 @@ export default function ProductsAnalysisPage() {
   const { user, initAuth } = useAuthStore();
   const [mounted, setMounted] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<string>('');
+  const [lastUpdated, setLastUpdated] = useState('');
 
   useEffect(() => {
     initAuth();
@@ -23,6 +26,12 @@ export default function ProductsAnalysisPage() {
       router.push('/login');
     }
   }, [mounted, user, router]);
+
+  useEffect(() => {
+    if (mounted && user?.role === 'ADMIN') {
+      setLastUpdated(new Date().toLocaleString());
+    }
+  }, [mounted, user, selectedStatus]);
 
   if (!mounted || !user || user.role !== 'ADMIN') {
     return (
@@ -53,11 +62,16 @@ export default function ProductsAnalysisPage() {
   return (
     <DashboardLayout>
       <div className="p-8">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-1">Análisis de Productos</h1>
-          <p className="text-gray-600">
-            Visualiza todos los productos con costos, precios de venta y ganancias
-          </p>
+        <div className="mb-6 space-y-4">
+          <AdminPageHeader
+            title="Analisis de productos"
+            description="Visualiza productos, costos, precios y margen por estado"
+            lastUpdated={lastUpdated}
+          />
+          <AdminStatusBanner
+            variant="info"
+            message="Usa el filtro para reducir errores visuales y comparar estados de forma consistente."
+          />
         </div>
 
         {/* Filtros */}

@@ -1,11 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardHeader, CardContent, CardTitle, KPI, Badge } from '@/components/ui';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import AdminStatusBanner from '@/components/admin/AdminStatusBanner';
 import { api } from '@/services/api';
 import { useAuthStore } from '@/store/authStore';
-import PendingOrdersModal from '@/components/PendingOrdersModal';
 
 interface DashboardStats {
   totalProducts: number;
@@ -38,6 +41,9 @@ interface InventoryItem {
 }
 
 export default function AdminDashboard() {
+  const router = useRouter();
+  const { token, user, initAuth } = useAuthStore();
+  const [mounted, setMounted] = useState(false);
   const [stats, setStats] = useState<DashboardStats>({
     totalProducts: 0,
     comprado: 0,
@@ -54,15 +60,28 @@ export default function AdminDashboard() {
   });
   const [recentSales, setRecentSales] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const { token } = useAuthStore();
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string>('');
 
   useEffect(() => {
-    if (token) {
+    initAuth();
+    setMounted(true);
+  }, [initAuth]);
+
+  useEffect(() => {
+    if (mounted && (!token || user?.role !== 'ADMIN')) {
+      router.push('/login');
+      return;
+    }
+
+    if (mounted && token) {
       fetchDashboardData();
     }
-  }, [token]);
+  }, [mounted, token, user, router]);
 
   const fetchDashboardData = async () => {
+    setLoading(true);
+    setError(null);
     try {
       const inventoryResponse = await api.get('/products/inventory/list');
       const items: InventoryItem[] = inventoryResponse.data || [];
@@ -117,12 +136,28 @@ export default function AdminDashboard() {
           .slice(0, 5)
       );
 
-      setLoading(false);
+      setLastUpdated(new Date().toLocaleString());
     } catch (error) {
       console.error('Error al cargar dashboard:', error);
+      setError('No se pudo cargar el dashboard. Verifica conexión e intenta nuevamente.');
+    } finally {
       setLoading(false);
     }
   };
+
+  if (!mounted || !token || user?.role !== 'ADMIN') {
+    return (
+      <DashboardLayout>
+        <div className="p-8">
+          <Card>
+            <CardContent className="py-12 text-center text-gray-600">
+              Validando acceso al dashboard...
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   if (loading) {
     return (
@@ -130,7 +165,7 @@ export default function AdminDashboard() {
         <div className="p-8">
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <p className="mt-4 text-gray-600">Cargando dashboard...</p>
+            <p className="mt-4 text-gray-600">Cargando dashboard y sincronizando indicadores...</p>
           </div>
         </div>
       </DashboardLayout>
@@ -140,11 +175,23 @@ export default function AdminDashboard() {
   return (
     <DashboardLayout>
       <div className="p-8 space-y-8">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">📊 Dashboard</h1>
-          <p className="text-gray-600 mt-1">Vista general del inventario y ventas</p>
-        </div>
+        <AdminPageHeader
+          title="Dashboard"
+          description="Vista general del inventario, ventas y estado operativo"
+          lastUpdated={lastUpdated}
+          onRefresh={fetchDashboardData}
+          refreshing={loading}
+          refreshLabel="Actualizar datos"
+        />
+
+        {error && (
+          <AdminStatusBanner
+            variant="error"
+            message={error}
+            actionLabel="Reintentar"
+            onAction={fetchDashboardData}
+          />
+        )}
 
         {/* KPIs Principales */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -276,12 +323,12 @@ export default function AdminDashboard() {
                 <div className="text-center py-12 text-gray-500">
                   <div className="text-5xl mb-3">🛒</div>
                   <p>No hay ventas registradas aún</p>
-                  <a
+                  <Link
                     href="/admin/sales"
                     className="inline-block mt-4 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm font-semibold"
                   >
                     Registrar Primera Venta
-                  </a>
+                  </Link>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -429,7 +476,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <a
+              <Link
                 href="/admin/inventory"
                 className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors group"
               >
@@ -438,9 +485,9 @@ export default function AdminDashboard() {
                   <p className="font-semibold text-blue-900">Gestionar Inventario</p>
                   <p className="text-xs text-blue-700">Ver todos los productos</p>
                 </div>
-              </a>
+              </Link>
 
-              <a
+              <Link
                 href="/admin/sales"
                 className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors group"
               >
@@ -449,9 +496,9 @@ export default function AdminDashboard() {
                   <p className="font-semibold text-green-900">Realizar Venta</p>
                   <p className="text-xs text-green-700">{stats.disponible} disponibles</p>
                 </div>
-              </a>
+              </Link>
 
-              <a
+              <Link
                 href="/admin/products-analysis"
                 className="flex items-center gap-3 p-4 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors group"
               >
@@ -460,9 +507,9 @@ export default function AdminDashboard() {
                   <p className="font-semibold text-purple-900">Análisis Financiero</p>
                   <p className="text-xs text-purple-700">Ver costos y márgenes</p>
                 </div>
-              </a>
+              </Link>
 
-              <a
+              <Link
                 href="/warranty"
                 className="flex items-center gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg hover:bg-yellow-100 transition-colors group"
               >
@@ -471,12 +518,11 @@ export default function AdminDashboard() {
                   <p className="font-semibold text-yellow-900">Buscar Garantía</p>
                   <p className="text-xs text-yellow-700">Por número de serie</p>
                 </div>
-              </a>
+              </Link>
             </div>
           </CardContent>
         </Card>
       </div>
-      <PendingOrdersModal />
     </DashboardLayout>
   );
 }

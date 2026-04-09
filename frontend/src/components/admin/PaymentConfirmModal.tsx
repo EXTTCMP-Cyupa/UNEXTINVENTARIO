@@ -30,7 +30,7 @@ interface Order {
   itemCount: number;
   items: OrderItem[];
   isPaid: boolean;
-  paymentNotes?: string;
+  paymentNotes?: string | null;
 }
 
 interface PaymentConfirmModalProps {

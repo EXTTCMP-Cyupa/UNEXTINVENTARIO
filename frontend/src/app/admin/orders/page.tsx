@@ -1,10 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { api } from '@/services/api';
-import AdminLayout from '@/components/admin/AdminLayout';
+import { DashboardLayout } from '@/components/DashboardLayout';
+import { Card, CardContent } from '@/components/ui';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import AdminStatusBanner from '@/components/admin/AdminStatusBanner';
 import PendingOrdersList from '@/components/admin/PendingOrdersList';
 import PaymentConfirmModal from '@/components/admin/PaymentConfirmModal';
+import { useAuthStore } from '@/store/authStore';
 
 interface OrderItem {
   saleId: number;
@@ -35,12 +40,27 @@ interface Order {
 }
 
 export default function AdminOrdersPage() {
+  const router = useRouter();
+  const { user, initAuth } = useAuthStore();
+  const [mounted, setMounted] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState('');
+
+  useEffect(() => {
+    initAuth();
+    setMounted(true);
+  }, [initAuth]);
+
+  useEffect(() => {
+    if (mounted && (!user || user.role !== 'ADMIN')) {
+      router.push('/login');
+    }
+  }, [mounted, user, router]);
 
   const fetchPendingOrders = async () => {
     try {
@@ -48,6 +68,7 @@ export default function AdminOrdersPage() {
       const response = await api.get('/orders/pending');
       setOrders(response.data || []);
       setError(null);
+      setLastUpdated(new Date().toLocaleString());
     } catch (err: any) {
       setError(err.message || 'Error al cargar órdenes pendientes');
       console.error('Error fetching orders:', err);
@@ -57,8 +78,26 @@ export default function AdminOrdersPage() {
   };
 
   useEffect(() => {
-    fetchPendingOrders();
-  }, []);
+    if (mounted && user?.role === 'ADMIN') {
+      fetchPendingOrders();
+    }
+  }, [mounted, user]);
+
+  if (!mounted || !user || user.role !== 'ADMIN') {
+    return (
+      <DashboardLayout>
+        <div className="p-8">
+          <Card>
+            <CardContent className="py-12">
+              <div className="text-center text-yellow-800">
+                <p>Acceso denegado. Solo administradores pueden acceder a esta página.</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   const handleMarkAsPaid = (order: Order) => {
     setSelectedOrder(order);
@@ -87,41 +126,37 @@ export default function AdminOrdersPage() {
   };
 
   return (
-    <AdminLayout>
-      <div className="min-h-screen bg-gray-50 p-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-4xl font-bold text-gray-900">Gestionar Órdenes</h1>
-              <p className="text-gray-600 mt-2">
-                {orders.length} orden{orders.length !== 1 ? 'es' : ''} pendiente{orders.length !== 1 ? 's' : ''} de pago
-              </p>
-            </div>
-            <button
-              onClick={fetchPendingOrders}
-              disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg transition-colors"
-            >
-              {loading ? 'Actualizando...' : 'Actualizar'}
-            </button>
-          </div>
-        </div>
+    <DashboardLayout>
+      <div className="min-h-screen bg-gray-50 p-6 space-y-6 lg:p-8">
+        <AdminPageHeader
+          title="Gestionar Ordenes"
+          description={`${orders.length} orden${orders.length !== 1 ? 'es' : ''} pendiente${orders.length !== 1 ? 's' : ''} de pago`}
+          lastUpdated={lastUpdated}
+          onRefresh={fetchPendingOrders}
+          refreshing={loading}
+          refreshLabel="Actualizar"
+        />
 
-        {/* Error message */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-            {error}
-          </div>
+          <AdminStatusBanner
+            variant="error"
+            title="No pudimos cargar las ordenes"
+            message={error}
+            actionLabel="Reintentar"
+            onAction={fetchPendingOrders}
+          />
         )}
 
         {/* Orders list */}
         {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <div className="flex h-64 items-center justify-center">
+            <div className="text-center">
+              <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600"></div>
+              <p className="mt-3 text-sm text-gray-600" aria-live="polite">Cargando ordenes pendientes...</p>
+            </div>
           </div>
         ) : orders.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
+          <div className="rounded-lg bg-white p-12 text-center shadow">
             <div className="text-6xl mb-4">✅</div>
             <h3 className="text-2xl font-bold text-gray-900 mb-2">¡Excelente!</h3>
             <p className="text-gray-600">No hay órdenes pendientes de pago en este momento.</p>
@@ -147,6 +182,6 @@ export default function AdminOrdersPage() {
           />
         )}
       </div>
-    </AdminLayout>
+    </DashboardLayout>
   );
 }

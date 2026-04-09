@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardHeader, CardContent, CardTitle, Badge } from '@/components/ui';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import AdminStatusBanner from '@/components/admin/AdminStatusBanner';
 import { warrantyService } from '@/services/api';
 import { AdminWarrantyRecord } from '@/types';
 import { useAuthStore } from '@/store/authStore';
@@ -42,6 +44,8 @@ export default function AdminWarrantiesPage() {
   const [warranties, setWarranties] = useState<AdminWarrantyRecord[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('TODOS');
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState('');
 
   useEffect(() => {
     initAuth();
@@ -65,8 +69,11 @@ export default function AdminWarrantiesPage() {
       setLoading(true);
       const data = await warrantyService.getAdminWarranties();
       setWarranties(data);
+      setError(null);
+      setLastUpdated(new Date().toLocaleString());
     } catch (error) {
       console.error('Error al cargar garantias:', error);
+      setError('No se pudo cargar el listado de garantias.');
     } finally {
       setLoading(false);
     }
@@ -107,10 +114,24 @@ export default function AdminWarrantiesPage() {
   return (
     <DashboardLayout>
       <div className="p-6 space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">🔒 Garantias</h1>
-          <p className="text-gray-600 mt-1">Listado completo de garantias de la empresa</p>
-        </div>
+        <AdminPageHeader
+          title="Garantias"
+          description="Listado completo y trazable de garantias de la empresa"
+          lastUpdated={lastUpdated}
+          onRefresh={fetchWarranties}
+          refreshing={loading}
+          refreshLabel="Recargar"
+        />
+
+        {error && (
+          <AdminStatusBanner
+            variant="error"
+            title="No pudimos cargar las garantias"
+            message={error}
+            actionLabel="Reintentar"
+            onAction={fetchWarranties}
+          />
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>

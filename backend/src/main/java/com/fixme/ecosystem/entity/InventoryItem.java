@@ -8,6 +8,8 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "inventory_item")
@@ -32,6 +34,9 @@ public class InventoryItem {
     // ========== FICHA TÉCNICA ==========
     @Column(length = 200)
     private String productName;         // ej: "Laptop Dell Latitude 5420"
+
+    @Column(length = 80)
+    private String category;            // ej: "Laptops"
 
     @Column(length = 100)
     private String brand;               // ej: "Dell"
@@ -100,8 +105,17 @@ public class InventoryItem {
     @Column(length = 150)
     private String supplier;            // eBay, Amazon, etc.
 
+    @Column(length = 80)
+    private String purchasePlace;       // eBay, Amazon, Otros
+
     @Column(length = 100)
     private String productOwner;        // Inversor/Dueño del producto (quién lo compró)
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "inventory_item_images", joinColumns = @JoinColumn(name = "inventory_item_id"))
+    @Column(name = "image_url", length = 5000)
+    @Builder.Default
+    private List<String> imageUrls = new ArrayList<>();
 
     // ========== RESERVA (disponible EN_TRANSITO y STOCK_LOCAL) ==========
     @Column

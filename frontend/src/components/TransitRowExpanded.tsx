@@ -12,9 +12,9 @@ interface TransitRowExpandedProps {
   internalCode: string;
   supplier: string;
   status: string;
-  costFob: number;
-  priceB2B: number;
-  pricePVP: number;
+  costFob?: number | null;
+  priceB2B?: number | null;
+  pricePVP?: number | null;
   logisticsStage?: string;
   createdAt: string;
   daysInTransit: number;
@@ -53,6 +53,10 @@ export default function TransitRowExpanded({
   onClose,
   onSuccess,
 }: TransitRowExpandedProps) {
+  const safeCostFob = costFob ?? 0;
+  const safePriceB2B = priceB2B ?? 0;
+  const safePricePVP = pricePVP ?? 0;
+
   const [action, setAction] = useState<ActionType>(null);
   const [shippingStatus, setShippingStatus] = useState(logisticsStage || 'ENVIADO_AL_PAIS');
   const isInTransit = status === 'EN_TRANSITO';
@@ -61,14 +65,14 @@ export default function TransitRowExpanded({
   
   const [localReceiptData, setLocalReceiptData] = useState<LocalReceiptData>({
     serialNumber: '',
-    priceB2B: priceB2B || 0,
-    pricePVP: pricePVP || 0,
+    priceB2B: safePriceB2B,
+    pricePVP: safePricePVP,
   });
   
   const [saleData, setSaleData] = useState<SaleData>({
     customerName: '',
     customerEmail: '',
-    reservedPrice: pricePVP || 0,
+    reservedPrice: safePricePVP,
   });
   
   const isPreparation = status === 'PREPARACION_ENVIO';
@@ -275,15 +279,15 @@ export default function TransitRowExpanded({
           </div>
           <div className="bg-white rounded-lg p-3 border border-gray-200">
             <p className="text-xs text-gray-600 uppercase font-semibold">FOB</p>
-            <p className="text-sm font-bold text-blue-600 mt-1">${costFob.toFixed(2)}</p>
+            <p className="text-sm font-bold text-blue-600 mt-1">${safeCostFob.toFixed(2)}</p>
           </div>
           <div className="bg-white rounded-lg p-3 border border-gray-200">
             <p className="text-xs text-gray-600 uppercase font-semibold">Precio B2B</p>
-            <p className="text-sm font-semibold text-gray-900 mt-1">${priceB2B.toFixed(2)}</p>
+            <p className="text-sm font-semibold text-gray-900 mt-1">${safePriceB2B.toFixed(2)}</p>
           </div>
           <div className="bg-white rounded-lg p-3 border border-gray-200">
             <p className="text-xs text-gray-600 uppercase font-semibold">Precio PVP</p>
-            <p className="text-sm font-semibold text-green-600 mt-1">${pricePVP.toFixed(2)}</p>
+            <p className="text-sm font-semibold text-green-600 mt-1">${safePricePVP.toFixed(2)}</p>
           </div>
         </div>
       </div>

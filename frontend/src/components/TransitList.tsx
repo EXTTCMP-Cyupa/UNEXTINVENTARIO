@@ -15,7 +15,7 @@ interface InventoryItem {
   internalCode: string;
   supplier: string;
   status: string;
-  costFob: number;
+  costFob?: number | null;
   estimatedPrice: number;
   priceB2B?: number;
   pricePVP?: number;
@@ -211,7 +211,7 @@ export default function TransitList() {
           <div>
             <p className="text-xs text-gray-600 font-semibold">Valor FOB Total</p>
             <p className="text-lg font-bold text-blue-600">
-              ${filtered.reduce((sum, item) => sum + item.costFob, 0).toFixed(2)}
+              ${filtered.reduce((sum, item) => sum + (item.costFob ?? 0), 0).toFixed(2)}
             </p>
           </div>
           <div>
@@ -255,7 +255,7 @@ export default function TransitList() {
                 internalCode={item.internalCode}
                 supplier={item.supplier}
                 status={item.status}
-                costFob={item.costFob}
+                costFob={item.costFob ?? 0}
                 priceB2B={item.priceB2B}
                 pricePVP={item.pricePVP}
                 daysInTransit={getDaysInTransit(item.createdAt)}
@@ -280,8 +280,8 @@ export default function TransitList() {
                   supplier={item.supplier}
                   status={item.status}
                   costFob={item.costFob}
-                  priceB2B={item.priceB2B || 0}
-                  pricePVP={item.pricePVP || 0}
+                  priceB2B={item.priceB2B}
+                  pricePVP={item.pricePVP}
                   logisticsStage={item.logisticsStage}
                   createdAt={item.createdAt}
                   daysInTransit={getDaysInTransit(item.createdAt)}

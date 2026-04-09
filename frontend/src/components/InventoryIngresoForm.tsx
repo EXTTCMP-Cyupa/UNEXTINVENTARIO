@@ -6,6 +6,81 @@ import { useAuthStore } from '@/store/authStore';
 
 type Step = 'origin' | 'details';
 type Origin = 'INTERNATIONAL' | 'LOCAL' | null;
+type PurchasePlace = 'EBAY' | 'AMAZON' | 'OTROS' | '';
+
+const CATEGORY_OPTIONS = [
+  'Laptops',
+  'Laptops Gaming',
+  'Ultrabooks',
+  'Workstations',
+  '2 en 1',
+  'Chromebooks',
+  'Accesorios',
+];
+
+const ACCESSORY_TYPE_OPTIONS = [
+  'Mouse',
+  'Teclado',
+  'Headset',
+  'Docking Station',
+  'Hub USB-C',
+  'Webcam',
+  'Cargador',
+  'Bateria',
+  'Memoria RAM',
+  'SSD / Almacenamiento',
+  'Base Enfriadora',
+  'Funda / Mochila',
+  'Cable / Adaptador',
+  'Otros',
+];
+
+const LAPTOP_BRANDS = [
+  'Dell',
+  'HP',
+  'Lenovo',
+  'ASUS',
+  'Acer',
+  'Apple',
+  'MSI',
+  'Samsung',
+  'Huawei',
+  'Microsoft',
+  'Alienware',
+  'Gigabyte',
+  'Razer',
+];
+
+const ACCESSORY_BRANDS = [
+  'Logitech',
+  'Razer',
+  'Anker',
+  'Ugreen',
+  'TP-Link',
+  'Kingston',
+  'Corsair',
+  'HyperX',
+  'Redragon',
+  'Baseus',
+  'Belkin',
+  'Xiaomi',
+];
+
+const BRANDS_BY_CATEGORY: Record<string, string[]> = {
+  Laptops: LAPTOP_BRANDS,
+  'Laptops Gaming': LAPTOP_BRANDS,
+  Ultrabooks: LAPTOP_BRANDS,
+  Workstations: LAPTOP_BRANDS,
+  '2 en 1': LAPTOP_BRANDS,
+  Chromebooks: LAPTOP_BRANDS,
+  Accesorios: ACCESSORY_BRANDS,
+};
+
+const PURCHASE_PLACE_LABELS: Record<Exclude<PurchasePlace, ''>, string> = {
+  EBAY: 'eBay',
+  AMAZON: 'Amazon',
+  OTROS: 'Otros',
+};
 
 export default function InventoryIngresoForm() {
   const [step, setStep] = useState<Step>('origin');
@@ -24,9 +99,16 @@ export default function InventoryIngresoForm() {
   const [formData, setFormData] = useState({
     // Ficha Técnica
     productName: '',
+    category: '',
+    accessorySubtype: '',
     brand: '',
+    brandOther: '',
     model: '',
     specs: '',
+
+    // Lugar de compra
+    purchasePlace: '' as PurchasePlace,
+    supplierDetail: '',
     
     // Internacional específico
     costFob: '',
@@ -39,8 +121,6 @@ export default function InventoryIngresoForm() {
     priceB2B: '',
     pricePVP: '',
     
-    // Común
-    supplier: '',
   });
 
   const handleOriginSelect = (selected: Origin) => {
@@ -48,9 +128,20 @@ export default function InventoryIngresoForm() {
     setStep('details');
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => {
+      if (name === 'category') {
+        return {
+          ...prev,
+          category: value,
+          accessorySubtype: '',
+          brand: '',
+          brandOther: '',
+        };
+      }
+      return { ...prev, [name]: value };
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -62,17 +153,39 @@ export default function InventoryIngresoForm() {
     try {
       if (!token) throw new Error('No autenticado');
       if (!formData.productName) throw new Error('Ingresa nombre del producto');
-      if (!formData.brand) throw new Error('Ingresa marca');
+      if (!formData.category) throw new Error('Selecciona categoría');
+      if (formData.category === 'Accesorios' && !formData.accessorySubtype) {
+        throw new Error('Selecciona el tipo de accesorio');
+      }
+      if (!formData.brand) throw new Error('Selecciona marca');
       if (!formData.model) throw new Error('Ingresa modelo');
-      if (!formData.supplier) throw new Error('Ingresa proveedor');
+      if (!formData.purchasePlace) throw new Error('Selecciona lugar de compra');
+
+      const selectedBrand = formData.brand === 'OTRA' ? formData.brandOther.trim() : formData.brand;
+      if (!selectedBrand) throw new Error('Ingresa la marca del equipo');
+
+      const placeLabel = formData.purchasePlace ? PURCHASE_PLACE_LABELS[formData.purchasePlace] : '';
+      const supplierValue = formData.purchasePlace === 'OTROS'
+        ? formData.supplierDetail.trim()
+        : placeLabel;
+
+      if (!supplierValue) {
+        throw new Error('Ingresa el proveedor/lugar de compra');
+      }
+
+      const normalizedCategory = formData.category === 'Accesorios' && formData.accessorySubtype
+        ? `Accesorios - ${formData.accessorySubtype}`
+        : formData.category;
 
       let endpoint = '';
       let payload: any = {
         productName: formData.productName,
-        brand: formData.brand,
+        category: normalizedCategory,
+        brand: selectedBrand,
         model: formData.model,
         specs: formData.specs,
-        supplier: formData.supplier,
+        purchasePlace: placeLabel,
+        supplier: supplierValue,
       };
 
       if (origin === 'INTERNATIONAL') {
@@ -124,9 +237,14 @@ export default function InventoryIngresoForm() {
       setOrigin(null);
       setFormData({
         productName: '',
+        category: '',
+        accessorySubtype: '',
         brand: '',
+        brandOther: '',
         model: '',
         specs: '',
+        purchasePlace: '',
+        supplierDetail: '',
         costFob: '',
         estimatedPrice: '',
         serialNumber: '',
@@ -134,7 +252,6 @@ export default function InventoryIngresoForm() {
         extraCosts: '',
         priceB2B: '',
         pricePVP: '',
-        supplier: '',
       });
 
       setTimeout(() => setSuccess(false), 4000);
@@ -205,6 +322,7 @@ export default function InventoryIngresoForm() {
     );
   }
 
+  const brandsForSelectedCategory = BRANDS_BY_CATEGORY[formData.category] || BRANDS_BY_CATEGORY.Laptops;
   // PASO 2: Llenar Detalles
   return (
     <div className="bg-white rounded-lg shadow-md p-6 mb-6">
@@ -240,51 +358,141 @@ export default function InventoryIngresoForm() {
         <div className="border-l-4 border-gray-300 pl-4">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">📋 Ficha Técnica</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              type="text"
-              name="productName"
-              value={formData.productName}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del producto</label>
+              <input
+                type="text"
+                name="productName"
+                value={formData.productName}
+                onChange={handleChange}
+                placeholder="ej: Laptop Dell Latitude 5420"
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
+              <select
+                name="category"
+                value={formData.category}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Selecciona categoría</option>
+                {CATEGORY_OPTIONS.map((category) => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+            </div>
+
+            {formData.category === 'Accesorios' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de accesorio</label>
+                <select
+                  name="accessorySubtype"
+                  value={formData.accessorySubtype}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Tipo de accesorio</option>
+                  {ACCESSORY_TYPE_OPTIONS.map((type) => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Marca</label>
+              <select
+                name="brand"
+                value={formData.brand}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Selecciona marca</option>
+                {brandsForSelectedCategory.map((brand) => (
+                  <option key={brand} value={brand}>{brand}</option>
+                ))}
+                <option value="OTRA">Otra marca</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Modelo</label>
+              <input
+                type="text"
+                name="model"
+                value={formData.model}
+                onChange={handleChange}
+                placeholder="ej: Latitude 5420"
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Lugar de compra</label>
+              <select
+                name="purchasePlace"
+                value={formData.purchasePlace}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Lugar de compra</option>
+                <option value="EBAY">eBay</option>
+                <option value="AMAZON">Amazon</option>
+                <option value="OTROS">Otros</option>
+              </select>
+            </div>
+          </div>
+
+          {formData.brand === 'OTRA' && (
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Otra marca</label>
+              <input
+                type="text"
+                name="brandOther"
+                value={formData.brandOther}
+                onChange={handleChange}
+                placeholder="Ingresa la marca"
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          )}
+
+          {formData.purchasePlace === 'OTROS' && (
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Proveedor / tienda</label>
+              <input
+                type="text"
+                name="supplierDetail"
+                value={formData.supplierDetail}
+                onChange={handleChange}
+                placeholder="Nombre del proveedor / tienda"
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          )}
+
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Ficha técnica</label>
+            <textarea
+              name="specs"
+              value={formData.specs}
               onChange={handleChange}
-              placeholder="ej: Laptop Dell Latitude 5420"
-              required
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <input
-              type="text"
-              name="brand"
-              value={formData.brand}
-              onChange={handleChange}
-              placeholder="ej: Dell"
-              required
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <input
-              type="text"
-              name="model"
-              value={formData.model}
-              onChange={handleChange}
-              placeholder="ej: Latitude 5420"
-              required
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <input
-              type="text"
-              name="supplier"
-              value={formData.supplier}
-              onChange={handleChange}
-              placeholder={origin === 'INTERNATIONAL' ? 'ej: eBay Seller / Amazon.com' : 'ej: Distribuidor XYZ'}
-              required
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="CPU, RAM, almacenamiento, pantalla, GPU, estado, batería, etc."
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              rows={3}
             />
           </div>
-          <textarea
-            name="specs"
-            value={formData.specs}
-            onChange={handleChange}
-            placeholder="ej: i5-11400H, 16GB RAM, 512GB SSD, Windows 11"
-            className="w-full mt-4 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            rows={2}
-          />
         </div>
 
         {/* SECCIÓN INTERNACIONAL */}

@@ -38,6 +38,7 @@ public class InventoryService {
 
         InventoryItem item = InventoryItem.builder()
             .productName(dto.getProductName())
+            .category(dto.getCategory())
             .brand(dto.getBrand())
             .model(dto.getModel())
             .specs(dto.getSpecs())
@@ -46,6 +47,7 @@ public class InventoryService {
             .status("COMPRADO")
             .costFob(dto.getCostFob())
             .supplier(dto.getSupplier())
+            .purchasePlace(dto.getPurchasePlace())
             .isReserved(false)
             .build();
 
@@ -65,6 +67,7 @@ public class InventoryService {
 
         InventoryItem item = InventoryItem.builder()
             .productName(dto.getProductName())
+            .category(dto.getCategory())
             .brand(dto.getBrand())
             .model(dto.getModel())
             .specs(dto.getSpecs())
@@ -78,6 +81,7 @@ public class InventoryService {
             .priceB2B(dto.getPriceB2B())
             .pricePVP(dto.getPricePVP())
             .supplier(dto.getSupplier())
+            .purchasePlace(dto.getPurchasePlace())
             .isReserved(false)
             .build();
 
@@ -232,6 +236,12 @@ public class InventoryService {
 
         if (dto.getProductOwner() != null && !dto.getProductOwner().isEmpty()) {
             item.setProductOwner(dto.getProductOwner());
+        }
+
+        if (dto.getImageUrls() != null && !dto.getImageUrls().isEmpty()) {
+            item.setImageUrls(dto.getImageUrls().stream()
+                .filter(url -> url != null && !url.isBlank())
+                .toList());
         }
 
         // Los precios ya fueron ingresados en PREPARACION_ENVIO - NO se editan aquí

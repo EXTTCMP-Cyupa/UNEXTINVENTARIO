@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import AdminStatusBanner from '@/components/admin/AdminStatusBanner';
 import { api } from '@/services/api';
 import { useAuthStore } from '@/store/authStore';
 
@@ -35,6 +37,7 @@ export default function AnticipatedSalesPage() {
   const [sales, setSales] = useState<AnticipatedSale[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState('');
 
   useEffect(() => {
     initAuth();
@@ -59,6 +62,7 @@ export default function AnticipatedSalesPage() {
       setError(null);
       const response = await api.get('/products/sales/anticipated');
       setSales(response.data || []);
+      setLastUpdated(new Date().toLocaleString());
     } catch (err: any) {
       console.error('Error fetching anticipated sales:', err);
       setError(err.response?.data?.message || 'Error al cargar ventas anticipadas');
@@ -121,13 +125,13 @@ export default function AnticipatedSalesPage() {
   return (
     <DashboardLayout>
       <div className="p-6 space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">🚀 Ventas Anticipadas</h1>
-          <p className="text-gray-600 mt-1">
-            Productos vendidos durante el tránsito - Pendientes de entrega física
-          </p>
-        </div>
+        <AdminPageHeader
+          title="Ventas anticipadas"
+          description="Productos vendidos en transito y pendientes de entrega fisica"
+          lastUpdated={lastUpdated}
+          onRefresh={fetchAnticipatedSales}
+          refreshing={loading}
+        />
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -194,14 +198,13 @@ export default function AnticipatedSalesPage() {
         )}
 
         {error && (
-          <Card className="border-red-200 bg-red-50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3 text-red-700">
-                <span className="text-2xl">⚠️</span>
-                <p className="font-medium">{error}</p>
-              </div>
-            </CardContent>
-          </Card>
+          <AdminStatusBanner
+            variant="error"
+            title="No pudimos cargar ventas anticipadas"
+            message={error}
+            actionLabel="Reintentar"
+            onAction={fetchAnticipatedSales}
+          />
         )}
 
         {!loading && sales.length === 0 && (

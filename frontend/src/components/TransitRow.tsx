@@ -8,9 +8,9 @@ interface TransitRowProps {
   internalCode: string;
   supplier: string;
   status: string;
-  costFob: number;
-  priceB2B?: number;
-  pricePVP?: number;
+  costFob?: number | null;
+  priceB2B?: number | null;
+  pricePVP?: number | null;
   daysInTransit: number;
   isExpanded: boolean;
   onExpand: (id: number) => void;
@@ -34,6 +34,8 @@ export default function TransitRow({
   onUpdateLogistics,
 }: TransitRowProps) {
   const isInTransit = status === 'EN_TRANSITO';
+  const safeCostFob = costFob ?? 0;
+  const safePriceB2B = priceB2B ?? 0;
 
   return (
     <div
@@ -57,13 +59,13 @@ export default function TransitRow({
 
       {/* Costo FOB */}
       <div className="col-span-2">
-        <p className="text-sm font-bold text-blue-600">${costFob.toFixed(2)}</p>
+        <p className="text-sm font-bold text-blue-600">${safeCostFob.toFixed(2)}</p>
         <p className="text-xs text-gray-500">FOB</p>
       </div>
 
       {/* Precio B2B */}
       <div className="col-span-2">
-        <p className="text-sm font-bold text-green-600">${(priceB2B || 0).toFixed(2)}</p>
+        <p className="text-sm font-bold text-green-600">${safePriceB2B.toFixed(2)}</p>
         <p className="text-xs text-gray-500">B2B</p>
       </div>
 

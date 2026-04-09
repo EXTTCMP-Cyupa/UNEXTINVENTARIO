@@ -3,9 +3,9 @@ spring:
     name: fixme-ecosystem
   
   datasource:
-    url: jdbc:postgresql://localhost:5433/fixme_ecosystem
-    username: fixme_admin
-    password: fixme_secure_pass_change_me
+    url: jdbc:postgresql://localhost:5433/fixme_db
+    username: postgres
+    password: postgres
     driver-class-name: org.postgresql.Driver
   
   jpa:

@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import AdminStatusBanner from '@/components/admin/AdminStatusBanner';
 import { api } from '@/services/api';
 import { useAuthStore } from '@/store/authStore';
 
@@ -36,6 +38,7 @@ export default function SalesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<AvailableProduct | null>(null);
   const [showSaleForm, setShowSaleForm] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState('');
 
   // Form state
   const [saleForm, setSaleForm] = useState({
@@ -106,8 +109,10 @@ export default function SalesPage() {
       const allProducts = [...disponible, ...transito];
       setProducts(allProducts);
       setFilteredProducts(allProducts);
+      setLastUpdated(new Date().toLocaleString());
     } catch (err: any) {
       console.error('Error fetching available products:', err);
+      setError('No se pudieron cargar los productos para venta.');
     } finally {
       setLoading(false);
     }
@@ -206,11 +211,24 @@ export default function SalesPage() {
   return (
     <DashboardLayout>
       <div className="p-6 space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">💰 Ventas</h1>
-          <p className="text-gray-600 mt-1">Registra ventas de productos disponibles</p>
-        </div>
+        <AdminPageHeader
+          title="Ventas"
+          description="Registra ventas de productos disponibles y anticipadas"
+          lastUpdated={lastUpdated}
+          onRefresh={fetchAvailableProducts}
+          refreshing={loading}
+          refreshLabel="Actualizar inventario"
+        />
+
+        {error && (
+          <AdminStatusBanner
+            variant="error"
+            title="Hay un problema en el registro"
+            message={error}
+            actionLabel="Reintentar carga"
+            onAction={fetchAvailableProducts}
+          />
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -268,7 +286,7 @@ export default function SalesPage() {
                 {loading && (
                   <div className="text-center py-8">
                     <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                    <p className="mt-2 text-gray-600">Cargando productos...</p>
+                    <p className="mt-2 text-gray-600" aria-live="polite">Cargando productos...</p>
                   </div>
                 )}
 
@@ -535,11 +553,13 @@ export default function SalesPage() {
                     />
                   </div>
 
-                  {/* Error */}
                   {error && (
-                    <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
-                      {error}
-                    </div>
+                    <AdminStatusBanner
+                      variant="error"
+                      message={error}
+                      actionLabel="Limpiar"
+                      onAction={() => setError(null)}
+                    />
                   )}
 
                   {/* Botones */}

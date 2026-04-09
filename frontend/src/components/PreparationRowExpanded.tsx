@@ -11,7 +11,7 @@ interface PreparationRowExpandedProps {
   specs: string;
   internalCode: string;
   supplier: string;
-  costFob: number;
+  costFob?: number | null;
   createdAt: string;
   daysWaiting: number;
   onClose: () => void;
@@ -31,11 +31,13 @@ export default function PreparationRowExpanded({
   onClose,
   onSuccess,
 }: PreparationRowExpandedProps) {
+  const safeCostFob = costFob ?? 0;
+
   const [formData, setFormData] = useState({
     costShipping: 0,
     costCustoms: 0,
-    priceReferential: costFob * 1.2,
-    priceProvider: costFob,
+    priceReferential: safeCostFob * 1.2,
+    priceProvider: safeCostFob,
     priceB2B: 0,              // Precio mayorista - ingresado UNA VEZ aquí
     pricePVP: 0,              // Precio público - ingresado UNA VEZ aquí
     trackingNumber: internalCode, // Sugerencia: usar código interno como tracking
@@ -44,7 +46,7 @@ export default function PreparationRowExpanded({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const landedCost = formData.costShipping + formData.costCustoms + costFob;
+  const landedCost = formData.costShipping + formData.costCustoms + safeCostFob;
   const suggestedMargin = formData.priceReferential - landedCost;
 
   const handlePrepareShipment = async () => {
@@ -101,7 +103,7 @@ export default function PreparationRowExpanded({
           </div>
           <div className="bg-white rounded-lg p-3 border border-gray-200">
             <p className="text-xs text-gray-600 uppercase font-semibold">FOB</p>
-            <p className="text-sm font-bold text-blue-600 mt-1">${costFob.toFixed(2)}</p>
+            <p className="text-sm font-bold text-blue-600 mt-1">${safeCostFob.toFixed(2)}</p>
           </div>
           <div className="bg-white rounded-lg p-3 border border-gray-200">
             <p className="text-xs text-gray-600 uppercase font-semibold">Proveedor</p>
@@ -259,7 +261,7 @@ export default function PreparationRowExpanded({
         <div className="mt-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200 grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
             <p className="text-xs text-gray-600 font-semibold uppercase">FOB</p>
-            <p className="text-lg font-bold text-blue-600">${costFob.toFixed(2)}</p>
+            <p className="text-lg font-bold text-blue-600">${safeCostFob.toFixed(2)}</p>
           </div>
           <div>
             <p className="text-xs text-gray-600 font-semibold uppercase">+ Flete</p>

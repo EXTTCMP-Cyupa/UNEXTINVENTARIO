@@ -4,8 +4,8 @@ interface DisponibleRowProps {
   id: number;
   productName: string;
   internalCode: string;
-  pricePVP: number;
-  priceB2B: number;
+  pricePVP?: number | null;
+  priceB2B?: number | null;
   daysInStock: number;
   isExpanded: boolean;
   onExpand: (id: number) => void;
@@ -21,6 +21,9 @@ export default function DisponibleRow({
   isExpanded,
   onExpand,
 }: DisponibleRowProps) {
+  const safePricePVP = pricePVP ?? 0;
+  const safePriceB2B = priceB2B ?? 0;
+
   return (
     <div
       className={`
@@ -38,13 +41,13 @@ export default function DisponibleRow({
 
       {/* Precio PVP */}
       <div className="col-span-2">
-        <p className="text-sm font-bold text-green-600">${pricePVP.toFixed(2)}</p>
+        <p className="text-sm font-bold text-green-600">${safePricePVP.toFixed(2)}</p>
         <p className="text-xs text-gray-500">PVP</p>
       </div>
 
       {/* Precio B2B */}
       <div className="col-span-2">
-        <p className="text-sm font-bold text-blue-600">${priceB2B.toFixed(2)}</p>
+        <p className="text-sm font-bold text-blue-600">${safePriceB2B.toFixed(2)}</p>
         <p className="text-xs text-gray-500">B2B</p>
       </div>
 

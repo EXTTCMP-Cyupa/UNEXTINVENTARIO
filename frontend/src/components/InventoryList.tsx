@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/services/api';
 import { Card, CardHeader, CardContent, Badge } from '@/components/ui';
 import InventoryIngresoForm from '@/components/InventoryIngresoForm';
-import QuickActionButtons from '@/components/QuickActionButtons';
 
 interface InventoryItem {
   id: number;
@@ -398,7 +397,6 @@ export default function InventoryList({ initialFilter }: InventoryListProps) {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
                     <div className="flex justify-end gap-2 flex-wrap">
-                      <QuickActionButtons item={item} onActionComplete={fetchInventory} />
                       <button
                         className="px-3 py-1.5 text-xs font-medium bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg transition-colors"
                         onClick={() => openEditModal(item)}

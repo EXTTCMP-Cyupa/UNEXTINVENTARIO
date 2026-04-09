@@ -7,7 +7,7 @@ interface StockLocalRowProps {
   productName: string;
   internalCode: string;
   supplier: string;
-  costFob: number;
+  costFob?: number | null;
   daysInTransit: number;
   isExpanded: boolean;
   onExpand: (id: number) => void;
@@ -25,6 +25,8 @@ export default function StockLocalRow({
   onExpand,
   onConfirmReceipt,
 }: StockLocalRowProps) {
+  const costFobSafe = costFob ?? 0;
+
   return (
     <div
       className={`
@@ -47,7 +49,7 @@ export default function StockLocalRow({
 
       {/* Costo FOB */}
       <div className="col-span-2">
-        <p className="text-sm font-bold text-blue-600">${costFob.toFixed(2)}</p>
+        <p className="text-sm font-bold text-blue-600">${costFobSafe.toFixed(2)}</p>
         <p className="text-xs text-gray-500">FOB</p>
       </div>
 

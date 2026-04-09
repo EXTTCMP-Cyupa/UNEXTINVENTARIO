@@ -13,7 +13,7 @@ interface InventoryItem {
   specs: string;
   internalCode: string;
   supplier: string;
-  costFob: number;
+  costFob?: number | null;
   costShipping?: number;
   costCustoms?: number;
   priceB2B?: number;
@@ -115,7 +115,7 @@ export default function StockLocalList() {
               productName={item.productName}
               internalCode={item.internalCode}
               supplier={item.supplier}
-              costFob={item.costFob}
+              costFob={item.costFob ?? 0}
               daysInTransit={getDaysInTransit(item.createdAt)}
               isExpanded={expandedId === item.id}
               onExpand={(id) => setExpandedId(expandedId === id ? null : id)}
@@ -130,7 +130,7 @@ export default function StockLocalList() {
                 specs={item.specs}
                 internalCode={item.internalCode}
                 supplier={item.supplier}
-                costFob={item.costFob}
+                costFob={item.costFob ?? 0}
                 costShipping={item.costShipping}
                 costCustoms={item.costCustoms}
                 priceB2B={item.priceB2B}

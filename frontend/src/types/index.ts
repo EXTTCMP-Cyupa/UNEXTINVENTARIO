@@ -70,10 +70,13 @@ export interface InventoryItem {
   serialNumber: string;
   internalCode: string;
   productName?: string;
+  category?: string;
   brand?: string;
   model?: string;
   specs?: string;
   purchaseType?: string;
+  purchasePlace?: string;
+  imageUrls?: string[];
   supplier?: string;
   estimatedPrice?: number;
   priceB2B?: number;

@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 public class LocalInventoryIngresoDTO {
     // Ficha Técnica
     private String productName;         // ej: "Laptop Dell Latitude 5420"
+    private String category;            // ej: "Laptops"
     private String brand;               // ej: "Dell"
     private String model;               // ej: "Latitude 5420"
     private String specs;               // ej: "i5-11400H, 16GB RAM, 512GB SSD"
@@ -33,6 +34,7 @@ public class LocalInventoryIngresoDTO {
     private BigDecimal pricePVP;        // Precio público activado
     
     // Proveedor
+    private String purchasePlace;       // eBay, Amazon, Otros
     private String supplier;            // ej: "Distribuidor XYZ"
 }
 

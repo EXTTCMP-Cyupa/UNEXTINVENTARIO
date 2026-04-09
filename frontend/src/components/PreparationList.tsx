@@ -13,7 +13,7 @@ interface InventoryItem {
   specs: string;
   internalCode: string;
   supplier: string;
-  costFob: number;
+  costFob?: number | null;
   priceReferential?: number;
   createdAt: string;
 }
@@ -152,7 +152,7 @@ export default function PreparationList() {
           <div>
             <p className="text-xs text-gray-600 font-semibold">Valor FOB Total</p>
             <p className="text-lg font-bold text-blue-600">
-              ${filtered.reduce((sum, item) => sum + item.costFob, 0).toFixed(2)}
+              ${filtered.reduce((sum, item) => sum + (item.costFob ?? 0), 0).toFixed(2)}
             </p>
           </div>
           <div>

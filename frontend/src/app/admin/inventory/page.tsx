@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardHeader, CardContent } from '@/components/ui';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import AdminStatusBanner from '@/components/admin/AdminStatusBanner';
 import InventoryIngresoForm from '@/components/InventoryIngresoForm';
 import InventoryList from '@/components/InventoryList';
 import PreparationManagementBoard from '@/components/PreparationManagementBoard';
@@ -19,6 +21,7 @@ export default function AdminInventoryPage() {
   const { user, initAuth } = useAuthStore();
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('comprado');
+  const [lastUpdated, setLastUpdated] = useState('');
 
   useEffect(() => {
     initAuth();
@@ -30,6 +33,12 @@ export default function AdminInventoryPage() {
       router.push('/login');
     }
   }, [mounted, user, router]);
+
+  useEffect(() => {
+    if (mounted && user?.role === 'ADMIN') {
+      setLastUpdated(new Date().toLocaleString());
+    }
+  }, [mounted, user, activeTab]);
 
   if (!mounted || !user || user.role !== 'ADMIN') {
     return (
@@ -60,12 +69,16 @@ export default function AdminInventoryPage() {
   return (
     <DashboardLayout>
       <div className="p-8">
-        {/* Header con flujo visual */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-1">Gestión de Inventario</h1>
-          <p className="text-gray-600 mb-6">
-            Flujo completo de importación: Comprado → Preparación → Tránsito → Stock Local → Disponible → Vendido
-          </p>
+        <div className="mb-6 space-y-4">
+          <AdminPageHeader
+            title="Gestion de inventario"
+            description="Flujo completo: Comprado -> Preparacion -> Transito -> Stock local -> Disponible -> Vendido"
+            lastUpdated={lastUpdated}
+          />
+          <AdminStatusBanner
+            variant="info"
+            message="Avanza en secuencia para prevenir errores de costos, trazabilidad y entrega."
+          />
 
           {/* Visual Flow - 6 Pasos */}
           <div className="bg-white rounded-lg border border-gray-200 p-6">

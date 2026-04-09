@@ -5,7 +5,7 @@ interface PreparationRowProps {
   productName: string;
   internalCode: string;
   supplier: string;
-  costFob: number;
+  costFob?: number | null;
   daysWaiting: number;
   isExpanded: boolean;
   onExpand: (id: number) => void;
@@ -21,6 +21,8 @@ export default function PreparationRow({
   isExpanded,
   onExpand,
 }: PreparationRowProps) {
+  const safeCostFob = costFob ?? 0;
+
   return (
     <div
       className={`
@@ -43,7 +45,7 @@ export default function PreparationRow({
 
       {/* Costo FOB */}
       <div className="col-span-2">
-        <p className="text-sm font-bold text-blue-600">${costFob.toFixed(2)}</p>
+        <p className="text-sm font-bold text-blue-600">${safeCostFob.toFixed(2)}</p>
         <p className="text-xs text-gray-500">FOB</p>
       </div>
 

@@ -57,8 +57,42 @@ export default function StockLocalRowExpanded({
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
 
   const landedCost = costFobSafe + costShippingSafe + costCustomsSafe;
+
+  const fileToDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error('No se pudo leer la imagen'));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    try {
+      const imageFiles = files.filter((file) => file.type.startsWith('image/')).slice(0, 4);
+      if (imageFiles.length === 0) {
+        setError('Selecciona archivos de imagen validos (jpg, png, webp)');
+        return;
+      }
+
+      const oversized = imageFiles.find((file) => file.size > 2 * 1024 * 1024);
+      if (oversized) {
+        setError('Cada imagen debe ser menor a 2MB');
+        return;
+      }
+
+      const dataUrls = await Promise.all(imageFiles.map(fileToDataUrl));
+      setPhotoPreviews(dataUrls);
+    } catch (err: any) {
+      setError(err.message || 'Error al procesar imagenes');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,6 +107,7 @@ export default function StockLocalRowExpanded({
       const response = await api.post(`/products/inventory/confirm-local-receipt/${id}`, {
         inventoryItemId: id,
         productOwner: form.productOwner,
+        imageUrls: photoPreviews,
         // Los precios ya fueron ingresados en PREPARACION - NO se envían aquí
       });
 
@@ -203,6 +238,38 @@ export default function StockLocalRowExpanded({
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"
             />
             <p className="text-xs text-gray-500 mt-1">Se usa para identificar a quién pagar cuando se venda el producto</p>
+          </div>
+        </div>
+
+        {/* Fotos del Equipo */}
+        <div>
+          <h4 className="text-sm font-bold text-gray-900 mb-4 uppercase tracking-wider">📸 Fotos del Equipo en Local</h4>
+          <div className="space-y-3">
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handlePhotoChange}
+              className="block w-full text-sm text-gray-700 file:mr-4 file:rounded-lg file:border-0 file:bg-purple-100 file:px-3 file:py-2 file:text-purple-700 file:font-semibold hover:file:bg-purple-200"
+            />
+            <p className="text-xs text-gray-500">Puedes cargar hasta 4 fotos (max 2MB c/u). La primera foto se mostrara en catalogo.</p>
+
+            {photoPreviews.length > 0 && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {photoPreviews.map((url, index) => (
+                  <div key={index} className="relative rounded-lg overflow-hidden border border-gray-200 bg-white">
+                    <img src={url} alt={`Preview ${index + 1}`} className="h-28 w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setPhotoPreviews((prev) => prev.filter((_, i) => i !== index))}
+                      className="absolute top-1 right-1 rounded-full bg-black/70 text-white text-xs px-2 py-0.5"
+                    >
+                      x
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
